@@ -1,25 +1,28 @@
 # SE2 Script Runtime
 
-An in-game C# scripting runtime plugin for Space Engineers 2, designed to be loaded and listed by Pulsar.
+An in-game C# scripting runtime plugin for Space Engineers 2, designed to load through Pulsar.
 
 ## Current status
 
-**Early development / developer preview.** This repository establishes the Pulsar client-plugin project, script host, script directory, logging, cancellation, and an example script. It is not yet a complete Programmable Block replacement and has not been validated against every SE2 game build.
+**Early development / developer preview.** The repository provides a Pulsar client-plugin project, a Roslyn-based C# script host, script file management, compiler diagnostics, logging, cancellation, and an in-game plain-text editor. It has not yet been built or validated against a live SE2 installation in this development session.
 
-## What it does now
+## Current features
 
-- Loads as an SE2 client plugin through Pulsar.
 - Creates a per-plugin data directory and a `Scripts` folder.
-- Finds `.csx` scripts in the configured Scripts folder; scripts start manually by default, with an optional auto-start setting.
-- Provides scripts with a small host API for logging, delays, cancellation checks, and their script name.
-- Tracks running scripts and requests cancellation when the runtime shuts down.
-- Writes runtime output to the Pulsar/game log and keeps a bounded recent-output buffer for the manager.
+- Lists `.csx` scripts and supports starting/stopping one or all scripts.
+- In-game editor controls to load, edit, save, check, and run a selected script.
+- Roslyn compiler errors and warnings with line and column locations.
+- Optional auto-start, disabled by default.
+- Script logging and a bounded recent-output buffer.
+- Small host API for logging, delays, cancellation checks, and script name.
+
+The editor is currently a plain multiline text editor. Syntax highlighting, autocomplete, and inline error underlining are not implemented yet.
 
 ## Important security note
 
 C# scripts execute with the permissions of the game process. **They are trusted code, not sandboxed code.** Only run scripts you wrote or have reviewed. A cancellation request is cooperative: a script that never awaits or checks its cancellation token may not stop promptly. Do not use this runtime to run unknown scripts.
 
-The initial host deliberately does not expose SE2 world, grid, block, or player objects. Those APIs must be bridged only after their current public interfaces have been verified against the installed game assemblies. This avoids pretending that an unsupported Programmable Block API already exists.
+The initial host deliberately does not expose SE2 world, grid, block, or player objects. Those APIs must be bridged only after their current public interfaces have been verified against the installed game assemblies.
 
 ## Installation / Pulsar listing
 
@@ -32,7 +35,6 @@ For development, use Pulsar's Modern launcher and a development source folder. S
 - Space Engineers 2 installed
 - Pulsar
 - .NET 10 SDK
-- Windows or Linux development environment
 
 Create `Directory.Build.props.user` in the repository root and set `Game2` to the game's `Game2` directory. The file is ignored by Git.
 
@@ -41,7 +43,7 @@ Example:
 ```xml
 <Project>
   <PropertyGroup>
-    <Game2>C:\\Program Files (x86)\\Steam\\steamapps\\common\\SpaceEngineers2\\Game2</Game2>
+    <Game2>C:\Program Files (x86)\Steam\steamapps\common\SpaceEngineers2\Game2</Game2>
   </PropertyGroup>
 </Project>
 ```
@@ -52,9 +54,18 @@ Build:
 dotnet build ClientPlugin/ClientPlugin.csproj -c Release
 ```
 
-## In-game script manager\n\nOpen the plugin settings from Pulsar's plugin list to open the SE2 Script Manager. It provides:\n\n- A script filename field (for example, `Example.csx`).\n- Start Selected / Stop Selected controls.\n- Start All / Stop All controls.\n- A refresh action that shows available scripts, running scripts, and recent output.\n- An optional auto-start setting, disabled by default.\n\nThe manager currently uses a settings screen rather than a full code editor. Edit `.csx` files with an external text editor, then use Refresh Script List.\n\n## Writing a script
+## Using the in-game editor
 
-Put a `.csx` file in the runtime's `Scripts` folder. For example:
+1. Open **SE2 Script Runtime** from the Pulsar plugin list and open its settings.
+2. Enter a filename such as `Example.csx`.
+3. Select **Load Script** to load an existing file. If it is a new filename, enter source in the editor and use **Save Script** to create it.
+4. Select **Check Script** to see compiler errors and warnings.
+5. Select **Save and Run Script** to save the editor contents and start the script.
+6. Use **Stop Selected Script** to request cancellation.
+
+Scripts are stored in the plugin's `Scripts` data folder. The plugin logs the full folder path when it starts.
+
+## Example script
 
 ```csharp
 Api.Log("Hello from an SE2 script!");
@@ -65,12 +76,10 @@ while (!Api.CancellationToken.IsCancellationRequested)
 }
 ```
 
-The data folder is supplied by Pulsar through its plugin configuration path. The plugin logs the exact Scripts directory when it starts.
-
 ## Roadmap
 
-- In-game code editor with syntax highlighting and diagnostics.
-- Per-script enable/disable and persisted startup settings.\n- Script reload controls and more detailed execution diagnostics.
+- Syntax highlighting, autocomplete, and inline diagnostics.
+- Per-script enable/disable and persisted startup settings.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
