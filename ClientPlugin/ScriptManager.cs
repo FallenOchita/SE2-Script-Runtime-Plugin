@@ -17,6 +17,10 @@ public sealed class ScriptManager
 
     public string ScriptDirectory { get; }
     public int RunningCount => _running.Count;
+    public string[] RunningScripts => _running.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+
+    public string[] ListScripts() => Directory.EnumerateFiles(ScriptDirectory, "*.csx")
+        .Select(Path.GetFileName).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
 
     public ScriptManager(string scriptDirectory)
     {
@@ -28,10 +32,12 @@ public sealed class ScriptManager
         EnsureExampleScript();
     }
 
-    public void StartAll()
+    public int StartAll()
     {
+        var started = 0;
         foreach (var file in Directory.EnumerateFiles(ScriptDirectory, "*.csx").OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
-            Start(file);
+            if (Start(file)) started++;
+        return started;
     }
 
     public bool Start(string path)
@@ -63,10 +69,15 @@ public sealed class ScriptManager
         return true;
     }
 
-    public void StopAll()
+    public int StopAll()
     {
+        var stopped = 0;
         foreach (var state in _running.Values)
+        {
             state.Cancellation.Cancel();
+            stopped++;
+        }
+        return stopped;
     }
 
     private async Task ExecuteAsync(string path, string name, RunningScript state)
