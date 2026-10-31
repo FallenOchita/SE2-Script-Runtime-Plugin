@@ -58,7 +58,7 @@ public sealed class ScriptManager
         }
 
         ScriptLogger.Write(name, "Start requested.");
-        _ = ExecuteAsync(fullPath, name, state);
+        _ = Task.Run(() => ExecuteAsync(fullPath, name, state));
         return true;
     }
 
