@@ -32,6 +32,7 @@ public sealed class ScriptApi
 
     public void Log(string message)
     {
+        ScriptLogger.Write(_scriptName, message);
         Keen.VRage.Library.Diagnostics.Log.Default.WriteLine($"[SE2ScriptRuntime:{_scriptName}] {message}");
     }
 
