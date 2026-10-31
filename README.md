@@ -10,10 +10,10 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to be loa
 
 - Loads as an SE2 client plugin through Pulsar.
 - Creates a per-plugin data directory and a `Scripts` folder.
-- Finds `.csx` scripts and runs them when the plugin starts.
+- Finds `.csx` scripts in the configured Scripts folder; scripts start manually by default, with an optional auto-start setting.
 - Provides scripts with a small host API for logging, delays, cancellation checks, and their script name.
 - Tracks running scripts and requests cancellation when the runtime shuts down.
-- Writes runtime output to the Pulsar/game log.
+- Writes runtime output to the Pulsar/game log and keeps a bounded recent-output buffer for the manager.
 
 ## Important security note
 
@@ -52,7 +52,7 @@ Build:
 dotnet build ClientPlugin/ClientPlugin.csproj -c Release
 ```
 
-## Writing a script
+## In-game script manager\n\nOpen the plugin settings from Pulsar's plugin list to open the SE2 Script Manager. It provides:\n\n- A script filename field (for example, `Example.csx`).\n- Start Selected / Stop Selected controls.\n- Start All / Stop All controls.\n- A refresh action that shows available scripts, running scripts, and recent output.\n- An optional auto-start setting, disabled by default.\n\nThe manager currently uses a settings screen rather than a full code editor. Edit `.csx` files with an external text editor, then use Refresh Script List.\n\n## Writing a script
 
 Put a `.csx` file in the runtime's `Scripts` folder. For example:
 
@@ -69,8 +69,8 @@ The data folder is supplied by Pulsar through its plugin configuration path. The
 
 ## Roadmap
 
-- In-game script manager and editor UI (list, start, stop, reload, output).
-- Per-script enable/disable and persisted settings.
+- In-game code editor with syntax highlighting and diagnostics.
+- Per-script enable/disable and persisted startup settings.\n- Script reload controls and more detailed execution diagnostics.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
