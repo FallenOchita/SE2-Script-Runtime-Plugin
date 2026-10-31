@@ -57,6 +57,7 @@ public sealed class ScriptManager
             return false;
         }
 
+        ScriptLogger.Write(name, "Start requested.");
         _ = ExecuteAsync(fullPath, name, state);
         return true;
     }
@@ -66,6 +67,7 @@ public sealed class ScriptManager
         if (!_running.TryGetValue(name, out var state))
             return false;
         state.Cancellation.Cancel();
+        ScriptLogger.Write(name, "Stop requested.");
         return true;
     }
 
