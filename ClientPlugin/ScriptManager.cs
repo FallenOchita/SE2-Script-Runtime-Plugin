@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using Keen.VRage.Library.Diagnostics;
@@ -14,22 +15,55 @@ public sealed class ScriptManager
 {
     private readonly ConcurrentDictionary<string, RunningScript> _running = new(StringComparer.OrdinalIgnoreCase);
     private readonly ScriptOptions _options;
-
     public string ScriptDirectory { get; }
     public int RunningCount => _running.Count;
     public string[] RunningScripts => _running.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
-
-    public string[] ListScripts() => Directory.EnumerateFiles(ScriptDirectory, "*.csx")
-        .Select(Path.GetFileName).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+    public string[] ListScripts() => Directory.EnumerateFiles(ScriptDirectory, "*.csx").Select(Path.GetFileName).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
 
     public ScriptManager(string scriptDirectory)
     {
-        ScriptDirectory = scriptDirectory;
+        ScriptDirectory = Path.GetFullPath(scriptDirectory);
         Directory.CreateDirectory(ScriptDirectory);
-        _options = ScriptOptions.Default
-            .WithImports("System", "System.Threading", "System.Threading.Tasks", "SE2ScriptRuntime")
+        _options = ScriptOptions.Default.WithImports("System", "System.Threading", "System.Threading.Tasks", "SE2ScriptRuntime")
             .WithReferences(typeof(ScriptGlobals).Assembly, typeof(Task).Assembly);
         EnsureExampleScript();
+    }
+
+    private string ResolveScriptPath(string name)
+    {
+        var safeName = Path.GetFileName(name?.Trim() ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(safeName)) throw new InvalidOperationException("Enter a script filename.");
+        if (!safeName.EndsWith(".csx", StringComparison.OrdinalIgnoreCase)) safeName += ".csx";
+        if (safeName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || safeName.Contains(Path.DirectorySeparatorChar) || safeName.Contains(Path.AltDirectorySeparatorChar))
+            throw new InvalidOperationException("Invalid script filename.");
+        return Path.Combine(ScriptDirectory, safeName);
+    }
+
+    public string ReadScript(string name)
+    {
+        var path = ResolveScriptPath(name);
+        if (!File.Exists(path)) throw new FileNotFoundException("The selected script does not exist.", path);
+        return File.ReadAllText(path);
+    }
+
+    public void SaveScript(string name, string source)
+    {
+        var path = ResolveScriptPath(name);
+        File.WriteAllText(path, source ?? string.Empty);
+        ScriptLogger.Write(Path.GetFileName(path), "Saved from in-game editor.");
+    }
+
+    public string[] Validate(string source)
+    {
+        var diagnostics = CSharpScript.Create(source ?? string.Empty, _options, typeof(ScriptGlobals)).Compile();
+        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error || d.Severity == DiagnosticSeverity.Warning)
+            .Select(d =>
+            {
+                var span = d.Location.GetLineSpan();
+                var line = span.StartLinePosition.Line + 1;
+                var column = span.StartLinePosition.Character + 1;
+                return $"{d.Severity} {d.Id} (line {line}, column {column}): {d.GetMessage()}";
+            }).ToArray();
     }
 
     public int StartAll()
@@ -40,23 +74,17 @@ public sealed class ScriptManager
         return started;
     }
 
-    public bool Start(string path)
+    public bool Start(string pathOrName)
     {
-        var fullPath = Path.GetFullPath(path);
-        if (!fullPath.StartsWith(Path.GetFullPath(ScriptDirectory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        var fullPath = Path.IsPathRooted(pathOrName) ? Path.GetFullPath(pathOrName) : ResolveScriptPath(pathOrName);
+        var root = ScriptDirectory.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Scripts must be located inside the configured Scripts directory.");
-        if (!File.Exists(fullPath))
-            return false;
-
+        if (!File.Exists(fullPath)) return false;
         var name = Path.GetFileName(fullPath);
         var cts = new CancellationTokenSource();
         var state = new RunningScript(cts);
-        if (!_running.TryAdd(name, state))
-        {
-            cts.Dispose();
-            return false;
-        }
-
+        if (!_running.TryAdd(name, state)) { cts.Dispose(); return false; }
         ScriptLogger.Write(name, "Start requested.");
         _ = Task.Run(() => ExecuteAsync(fullPath, name, state));
         return true;
@@ -64,9 +92,9 @@ public sealed class ScriptManager
 
     public bool Stop(string name)
     {
-        if (!_running.TryGetValue(name, out var state))
-            return false;
-        state.Cancellation.Cancel();
+        if (!_running.TryGetValue(name, out var state)) return false;
+        try { state.Cancellation.Cancel(); }
+        catch (ObjectDisposedException) { return false; }
         ScriptLogger.Write(name, "Stop requested.");
         return true;
     }
@@ -74,11 +102,8 @@ public sealed class ScriptManager
     public int StopAll()
     {
         var stopped = 0;
-        foreach (var state in _running.Values)
-        {
-            state.Cancellation.Cancel();
-            stopped++;
-        }
+        foreach (var pair in _running)
+            if (Stop(pair.Key)) stopped++;
         return stopped;
     }
 
@@ -92,36 +117,20 @@ public sealed class ScriptManager
             ScriptLogger.Write(name, "Completed.");
             Log.Default.WriteLine($"[SE2ScriptRuntime:{name}] Completed.");
         }
-        catch (OperationCanceledException)
-        {
-            ScriptLogger.Write(name, "Cancellation requested.");
-            Log.Default.WriteLine($"[SE2ScriptRuntime:{name}] Cancellation requested.");
-        }
-        catch (Exception ex)
-        {
-            ScriptLogger.Write(name, $"ERROR: {ex}");
-            Log.Default.WriteLine(LogSeverity.Error, $"[SE2ScriptRuntime:{name}] {ex}");
-        }
-        finally
-        {
-            _running.TryRemove(name, out _);
-            state.Cancellation.Dispose();
-        }
+        catch (OperationCanceledException) { ScriptLogger.Write(name, "Cancellation requested."); Log.Default.WriteLine($"[SE2ScriptRuntime:{name}] Cancellation requested."); }
+        catch (Exception ex) { ScriptLogger.Write(name, $"ERROR: {ex}"); Log.Default.WriteLine(LogSeverity.Error, $"[SE2ScriptRuntime:{name}] {ex}"); }
+        finally { _running.TryRemove(name, out _); state.Cancellation.Dispose(); }
     }
 
     private void EnsureExampleScript()
     {
         var path = Path.Combine(ScriptDirectory, "Example.csx");
-        if (File.Exists(path))
-            return;
-
+        if (File.Exists(path)) return;
         File.WriteAllText(path,
             "Api.Log(\"Example script started. Edit or remove this file to change startup behavior.\");\n" +
-            "while (!Api.CancellationToken.IsCancellationRequested)\n" +
-            "{\n" +
+            "while (!Api.CancellationToken.IsCancellationRequested)\n{\n" +
             "    await Api.Delay(TimeSpan.FromSeconds(10));\n" +
-            "    Api.Log(\"Example script is running.\");\n" +
-            "}\n");
+            "    Api.Log(\"Example script is running.\");\n}\n");
     }
 
     private sealed class RunningScript
