@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <Game2></Game2>
+    <Pulsar></Pulsar>
+  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)Version.Build.props" />
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.props.user" Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.props.user')" />
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <Game2 Condition="'$(Game2)' == ''">$(registry:HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 1133870@InstallLocation)\Game2</Game2>
+  </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <Game2 Condition="'$(Game2)' == '' and '$(HOME)' != ''">$(HOME)/.steam/steam/steamapps/common/SpaceEngineers2/Game2</Game2>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Pulsar)' != ''">
+    <LocalDeploymentDir Condition="'$(LocalDeploymentDir)' == ''">$(Pulsar)/Modern/Local</LocalDeploymentDir>
+  </PropertyGroup>
+</Project>
