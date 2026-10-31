@@ -28,6 +28,15 @@ internal sealed class MultilineTextboxAttribute : Attribute, IElement
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         };
         textBox.TextChanged += (_, _) => setter(textBox.Text);
+
+        System.ComponentModel.PropertyChangedEventHandler handler = (_, args) =>
+        {
+            if (args.PropertyName == name)
+                textBox.Text = (string)getter() ?? string.Empty;
+        };
+        Config.Current.PropertyChanged += handler;
+        textBox.DetachedFromVisualTree += (_, _) => Config.Current.PropertyChanged -= handler;
+
         return RowBuilder.NewRow(Tools.Tools.GetLabelOrDefault(name, Label), Description, textBox);
     }
 
