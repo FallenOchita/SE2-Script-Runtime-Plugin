@@ -12,5 +12,5 @@
   <NuGetReferences>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.14.0" />
   </NuGetReferences>
-  <Commit>748300f7249d42e7dc0d72985c1d78c592fdfb4e</Commit>
+  <Commit>43c5a2097523b174fafc0cd040bac09a691a8538</Commit>
 </PluginData>
