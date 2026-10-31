@@ -32,7 +32,7 @@ public sealed class ScriptApi
 
     public void Log(string message)
     {
-        Log.Default.WriteLine($"[SE2ScriptRuntime:{_scriptName}] {message}");
+        Keen.VRage.Library.Diagnostics.Log.Default.WriteLine($"[SE2ScriptRuntime:{_scriptName}] {message}");
     }
 
     public Task Delay(TimeSpan duration)
