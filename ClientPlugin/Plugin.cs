@@ -4,6 +4,8 @@ using System.Reflection;
 using HarmonyLib;
 using Keen.VRage.Core.Plugins;
 using Keen.VRage.Library.Diagnostics;
+using SE2ScriptRuntime.Settings;
+using SE2ScriptRuntime.Tools;
 
 namespace SE2ScriptRuntime;
 
@@ -23,18 +25,40 @@ public sealed class Plugin : IPlugin
     {
         Instance = this;
         Directory.CreateDirectory(DataDir);
+        Config.Current = ConfigStorage.Load();
         Scripts = new ScriptManager(Path.Combine(DataDir, "Scripts"));
+        Config.Current.RefreshStatus();
+
         Log.Default.WriteLine($"[{Name}] Loaded. Script folder: {Scripts.ScriptDirectory}");
         var harmony = new Harmony(Name);
         harmony.PatchAll(Assembly.GetExecutingAssembly());
-        Scripts.StartAll();
+
+        if (Config.Current.AutoStartScripts)
+            Scripts.StartAll();
     }
 
-    // Pulsar invokes this method from the plugin's settings button.
-    // The full in-game manager screen is planned for the next milestone.
     public void OpenConfigDialog()
     {
-        Log.Default.WriteLine($"[{Name}] Scripts are stored in: {Scripts.ScriptDirectory}");
-        Log.Default.WriteLine($"[{Name}] Running scripts: {Scripts.RunningCount}");
+        try
+        {
+            var sharedUi = GameAccess.GetSharedUI();
+            if (sharedUi == null)
+            {
+                Log.Default.WriteLine(LogSeverity.Warning, $"[{Name}] SharedUIComponent not available");
+                return;
+            }
+
+            var generator = new SettingsGenerator();
+            var viewModel = new SettingsScreenViewModel(
+                generator.Title,
+                panel => generator.PopulateContent(panel),
+                () => ConfigStorage.Save(Config.Current));
+
+            sharedUi.CreateScreen<SettingsScreen>(viewModel, showCursor: true);
+        }
+        catch (Exception e)
+        {
+            Log.Default.WriteLine(LogSeverity.Error, $"[{Name}] OpenConfigDialog failed: {e}");
+        }
     }
 }
