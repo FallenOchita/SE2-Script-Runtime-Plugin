@@ -52,6 +52,7 @@ public sealed class Config : INotifyPropertyChanged
             var path = System.IO.Path.Combine(Plugin.Instance.Scripts.ScriptDirectory, name);
             var started = Plugin.Instance.Scripts.Start(path);
             ScriptStatus = started ? $"Started: {name}" : $"Could not start {name}. It may already be running or the file does not exist.";
+            RefreshStatus();
         }
         catch (Exception ex) { ScriptStatus = $"Start failed: {ex.Message}"; }
     }
@@ -59,8 +60,14 @@ public sealed class Config : INotifyPropertyChanged
     [Button(label: "Stop Selected Script", description: "Requests cancellation of the selected script.")]
     public void StopSelectedScript()
     {
-        var name = NormalizeScriptName(SelectedScript);
-        ScriptStatus = Plugin.Instance.Scripts.Stop(name) ? $"Stop requested: {name}" : $"Not running: {name}";
+        try
+        {
+            var name = NormalizeScriptName(SelectedScript);
+            var stopped = Plugin.Instance.Scripts.Stop(name);
+            ScriptStatus = stopped ? $"Stop requested: {name}" : $"Not running: {name}";
+            RefreshStatus();
+        }
+        catch (Exception ex) { ScriptStatus = $"Stop failed: {ex.Message}"; }
     }
 
     [Button(label: "Start All Scripts", description: "Starts every .csx file in the Scripts folder.")]
@@ -68,6 +75,7 @@ public sealed class Config : INotifyPropertyChanged
     {
         var count = Plugin.Instance.Scripts.StartAll();
         ScriptStatus = $"Start requested for {count} script(s).";
+        RefreshStatus();
     }
 
     [Button(label: "Stop All Scripts", description: "Requests cancellation of every running script.")]
@@ -75,6 +83,7 @@ public sealed class Config : INotifyPropertyChanged
     {
         var count = Plugin.Instance.Scripts.StopAll();
         ScriptStatus = $"Stop requested for {count} script(s).";
+        RefreshStatus();
     }
 
     public void RefreshStatus()
