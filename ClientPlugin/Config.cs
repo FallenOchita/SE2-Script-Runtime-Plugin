@@ -33,7 +33,7 @@ public sealed class Config : INotifyPropertyChanged
         set => SetField(ref selectedScript, value);
     }
 
-    [Textbox(label: "Scripts and status", description: "Read the available script names and runtime state here. Use Refresh List after changing files.")]
+    [MultilineTextbox(label: "Scripts and status", description: "Read the available script names and runtime state here. Use Refresh List after changing files.")]
     public string ScriptStatus
     {
         get => scriptStatus;
@@ -82,7 +82,7 @@ public sealed class Config : INotifyPropertyChanged
         if (Plugin.Instance?.Scripts == null) return;
         var files = Plugin.Instance.Scripts.ListScripts();
         var running = Plugin.Instance.Scripts.RunningScripts;
-        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nAvailable ({files.Count}): {string.Join(", ", files)}\nRunning ({running.Count}): {string.Join(", ", running)}";
+        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nAvailable ({files.Length}): {string.Join(", ", files)}\nRunning ({running.Length}): {string.Join(", ", running)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
     }
 
     private static string NormalizeScriptName(string value)
