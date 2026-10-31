@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<PluginData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="GitHubPlugin">
+  <Id>c2d50e8e-9a8c-4f0c-aed1-4a4c60ed34e2</Id>
+  <RepoId>FallenOchita/SE2-Script-Runtime-Plugin</RepoId>
+  <FriendlyName>SE2 Script Runtime</FriendlyName>
+  <Author>FallenOchita</Author>
+  <Tooltip>Run trusted C# scripts inside Space Engineers 2.</Tooltip>
+  <Description>Provides a C# script host for Space Engineers 2 with script loading, logging, cancellation, and a dedicated Scripts directory. Early developer preview; scripts execute with game-process permissions and are not sandboxed. SE2 world APIs are not exposed yet.</Description>
+  <SourceDirectories>
+    <Directory>ClientPlugin</Directory>
+  </SourceDirectories>
+  <NuGetReferences>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.14.0" />
+  </NuGetReferences>
+</PluginData>
