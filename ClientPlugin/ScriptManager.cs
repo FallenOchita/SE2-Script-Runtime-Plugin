@@ -87,14 +87,17 @@ public sealed class ScriptManager
             var source = await File.ReadAllTextAsync(path, state.Cancellation.Token).ConfigureAwait(false);
             var globals = new ScriptGlobals(name, state.Cancellation.Token);
             await CSharpScript.RunAsync(source, _options, globals, typeof(ScriptGlobals), state.Cancellation.Token).ConfigureAwait(false);
+            ScriptLogger.Write(name, "Completed.");
             Log.Default.WriteLine($"[SE2ScriptRuntime:{name}] Completed.");
         }
         catch (OperationCanceledException)
         {
+            ScriptLogger.Write(name, "Cancellation requested.");
             Log.Default.WriteLine($"[SE2ScriptRuntime:{name}] Cancellation requested.");
         }
         catch (Exception ex)
         {
+            ScriptLogger.Write(name, $"ERROR: {ex}");
             Log.Default.WriteLine(LogSeverity.Error, $"[SE2ScriptRuntime:{name}] {ex}");
         }
         finally
