@@ -22,7 +22,7 @@ internal sealed class MultilineTextboxAttribute : Attribute, IElement
         {
             Text = (string)getter() ?? string.Empty,
             Width = 420,
-            Height = 220,
+            Height = 320,
             AcceptsReturn = true,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
