@@ -345,10 +345,17 @@ public sealed class Config : INotifyPropertyChanged
     {
         var name = (FormattingProfileName ?? string.Empty).Trim();
         var profile = GetBuiltInFormattingProfiles().Concat(FormattingProfiles ?? new List<ScriptFormattingProfile>())
-            .FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(item => item != null && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
         if (profile == null)
         {
             EditorStatus = $"Formatting profile '{name}' was not found. Built-ins: Spaces (4), Spaces (2), Tabs.";
+            return;
+        }
+
+        if (!Enum.IsDefined(typeof(ScriptIndentationStyle), profile.IndentationStyle)
+            || !Enum.IsDefined(typeof(ScriptIndentationSize), profile.IndentationSize))
+        {
+            EditorStatus = $"Formatting profile '{name}' contains unsupported indentation settings.";
             return;
         }
 
@@ -375,7 +382,7 @@ public sealed class Config : INotifyPropertyChanged
         }
 
         FormattingProfiles ??= new List<ScriptFormattingProfile>();
-        var existing = FormattingProfiles.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+        var existing = FormattingProfiles.FirstOrDefault(item => item != null && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
         if (existing == null)
         {
             FormattingProfiles.Add(new ScriptFormattingProfile
@@ -400,7 +407,7 @@ public sealed class Config : INotifyPropertyChanged
     {
         var name = (FormattingProfileName ?? string.Empty).Trim();
         var removed = (FormattingProfiles ?? new List<ScriptFormattingProfile>())
-            .RemoveAll(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+            .RemoveAll(item => item != null && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
         if (removed == 0)
         {
             EditorStatus = $"No custom formatting profile named '{name}' was found. Built-in profiles cannot be deleted.";
