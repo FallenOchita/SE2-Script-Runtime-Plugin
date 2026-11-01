@@ -15,6 +15,7 @@ public sealed class Config : INotifyPropertyChanged
     private string editorSource = string.Empty;
     private string editorStatus = "Load a script to begin editing.";
     private string editorDiagnostics = "No diagnostics yet. Select Check Script to compile the editor contents.";
+    private string editorDiagnosticsSummary = "Not checked yet.";
     private string selectedCompletion = "Api.Log(\"Your message here\");";
 
     [XmlIgnore]
@@ -45,6 +46,9 @@ public sealed class Config : INotifyPropertyChanged
         EditorStatus = "Inserted code template. Review it before saving or running.";
     }
 
+    [Textbox(label: "Diagnostic summary", description: "Counts from the most recent compile check.")]
+    public string EditorDiagnosticsSummary { get => editorDiagnosticsSummary; set => SetField(ref editorDiagnosticsSummary, value); }
+
     [MultilineTextbox(label: "Compiler diagnostics", description: "Errors and warnings from the most recent Check Script operation.")]
     public string EditorDiagnostics { get => editorDiagnostics; set => SetField(ref editorDiagnostics, value); }
 
@@ -54,14 +58,14 @@ public sealed class Config : INotifyPropertyChanged
     [Button(label: "Load Script", description: "Loads the selected script file into the editor.")]
     public void LoadEditorScript()
     {
-        try { EditorSource = Plugin.Instance.Scripts.ReadScript(NormalizeScriptName(SelectedScript)); EditorDiagnostics = "Loaded file. Run Check Script to refresh diagnostics."; EditorStatus = $"Loaded {NormalizeScriptName(SelectedScript)}."; }
+        try { EditorSource = Plugin.Instance.Scripts.ReadScript(NormalizeScriptName(SelectedScript)); EditorDiagnosticsSummary = "Not checked yet."; EditorDiagnostics = "Loaded file. Run Check Script to refresh diagnostics."; EditorStatus = $"Loaded {NormalizeScriptName(SelectedScript)}."; }
         catch (Exception ex) { EditorStatus = $"Load failed: {ex.Message}"; }
     }
 
     [Button(label: "Save Script", description: "Saves the editor contents to the selected .csx file.")]
     public void SaveEditorScript()
     {
-        try { var name = NormalizeScriptName(SelectedScript); Plugin.Instance.Scripts.SaveScript(name, EditorSource); EditorStatus = $"Saved {name}."; EditorDiagnostics = "Saved. Run Check Script to refresh diagnostics."; RefreshStatus(); }
+        try { var name = NormalizeScriptName(SelectedScript); Plugin.Instance.Scripts.SaveScript(name, EditorSource); EditorStatus = $"Saved {name}."; EditorDiagnosticsSummary = "Not checked yet."; EditorDiagnostics = "Saved. Run Check Script to refresh diagnostics."; RefreshStatus(); }
         catch (Exception ex) { EditorStatus = $"Save failed: {ex.Message}"; }
     }
 
@@ -72,7 +76,9 @@ public sealed class Config : INotifyPropertyChanged
         {
             var name = NormalizeScriptName(SelectedScript);
             var diagnostics = Plugin.Instance.Scripts.Validate(EditorSource);
-            EditorDiagnostics = diagnostics.Length == 0 ? $"{name}: no compiler errors or warnings." : string.Join("\n", diagnostics); EditorStatus = $"Check complete for {name}. {diagnostics.Length} diagnostic(s).";
+            UpdateDiagnosticSummary(diagnostics);
+            EditorDiagnostics = diagnostics.Length == 0 ? $"{name}: no compiler errors or warnings." : string.Join("\n", diagnostics);
+            EditorStatus = $"Check complete for {name}. {diagnostics.Length} diagnostic(s).";
         }
         catch (Exception ex) { EditorStatus = $"Check failed: {ex.Message}"; }
     }
@@ -83,9 +89,22 @@ public sealed class Config : INotifyPropertyChanged
         try
         {
             var name = NormalizeScriptName(SelectedScript);
+            var diagnostics = Plugin.Instance.Scripts.Validate(EditorSource);
+            UpdateDiagnosticSummary(diagnostics);
+            EditorDiagnostics = diagnostics.Length == 0 ? $"{name}: no compiler errors or warnings." : string.Join("\n", diagnostics);
+            var errors = CountDiagnostics(diagnostics, "Error ");
+            if (errors > 0)
+            {
+                EditorStatus = $"Run blocked: {errors} compiler error(s). Fix the errors and try again.";
+                return;
+            }
+
             Plugin.Instance.Scripts.SaveScript(name, EditorSource);
             var started = Plugin.Instance.Scripts.Start(name);
-            EditorStatus = started ? $"Saved and started {name}." : $"{name} is already running."; EditorDiagnostics = "Saved before launch. Use Check Script to review compiler diagnostics.";
+            var warnings = CountDiagnostics(diagnostics, "Warning ");
+            EditorStatus = started
+                ? warnings > 0 ? $"Saved and started {name} with {warnings} compiler warning(s)." : $"Saved and started {name}."
+                : $"{name} is already running.";
             RefreshStatus();
         }
         catch (Exception ex) { EditorStatus = $"Run failed: {ex.Message}"; }
@@ -122,6 +141,16 @@ public sealed class Config : INotifyPropertyChanged
 
     [Button(label: "Stop All Scripts", description: "Requests cancellation of every running script.")]
     public void StopAllScripts() { var count = Plugin.Instance.Scripts.StopAll(); ScriptStatus = $"Stop requested for {count} script(s)."; RefreshStatus(); }
+
+    private void UpdateDiagnosticSummary(string[] diagnostics)
+    {
+        var errors = CountDiagnostics(diagnostics, "Error ");
+        var warnings = CountDiagnostics(diagnostics, "Warning ");
+        EditorDiagnosticsSummary = $"Errors: {errors} | Warnings: {warnings}";
+    }
+
+    private static int CountDiagnostics(string[] diagnostics, string prefix)
+        => Array.FindAll(diagnostics, item => item.StartsWith(prefix, StringComparison.Ordinal)).Length;
 
     public void RefreshStatus()
     {
