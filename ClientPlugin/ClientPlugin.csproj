@@ -36,6 +36,9 @@
     <ItemGroup>
       <PackageReference Include="Lib.Harmony" Version="2.4.2" />
 <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.14.0" />
+      <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.2.0" />
+      <PackageReference Include="AvaloniaEdit.TextMate" Version="11.2.0" />
+      <PackageReference Include="TextMateSharp.Grammars" Version="1.0.70" />
       <PackageReference Include="Mono.Cecil" Version="0.11.6" />
       <!-- Uncomment to enable publicizer support
       <PackageReference Include="Krafs.Publicizer" Version="2.3.0">

@@ -160,13 +160,10 @@ public sealed class Config : INotifyPropertyChanged
     [Textbox(label: "Script filename", description: "Use a filename such as Example.csx. Files are stored in the plugin Scripts folder.")]
     public string SelectedScript { get => selectedScript; set => SetField(ref selectedScript, value); }
 
-    [MultilineTextbox(label: "C# script source", description: "Edit the selected .csx file here. Save before running.")]
+    [CodeEditor(label: "C# script source", description: "C# editor with line numbers and TextMate syntax highlighting. Save before running.")]
     public string EditorSource { get => editorSource; set => SetField(ref editorSource, value); }
 
-    [CodePreview(label: "Syntax preview", description: "A read-only colorized preview of common C# tokens. The editing field remains plain text.")]
-    public string HighlightedPreview { get => EditorSource; set => EditorSource = value; }
-
-    [CompletionPicker(label: "Code completion helpers", description: "Choose a known host-API snippet, then insert it into the editor. These are templates, not context-aware IntelliSense.")]
+    [CompletionPicker(label: "Code completion helpers", description: "Choose a host-API member suggestion or code template, then insert it into the editor.")]
     public string SelectedCompletion { get => selectedCompletion; set => SetField(ref selectedCompletion, value); }
 
     [Button(label: "Insert Selected Completion", description: "Appends the selected code template to the editor source.")]
