@@ -102,6 +102,11 @@ public sealed class ScriptManager
             throw new InvalidOperationException("Scripts must be located inside the configured Scripts directory.");
         if (!File.Exists(fullPath)) return false;
         var name = Path.GetFileName(fullPath);
+        if (Config.Current?.IsScriptDisabled(name) == true)
+        {
+            ScriptLogger.Write(name, "Launch blocked: this script is disabled in Script controls.");
+            return false;
+        }
         if (_running.ContainsKey(name)) return false;
 
         // Apply the same compile gate to every launch path, including Start All

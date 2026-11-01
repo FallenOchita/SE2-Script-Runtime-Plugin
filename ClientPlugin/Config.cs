@@ -12,6 +12,7 @@ public sealed class Config : INotifyPropertyChanged
 {
     private bool autoStartScripts;
     private string autoStartScriptNames = string.Empty;
+    private string disabledScriptNames = string.Empty;
     private string selectedScript = "Example.csx";
     private string scriptStatus = "Loading script list...";
     private string editorSource = string.Empty;
@@ -60,6 +61,79 @@ public sealed class Config : INotifyPropertyChanged
         ScriptStatus = remaining.Length == names.Length
             ? $"{name} was not in the auto-start list."
             : $"Removed {name} from auto-start. Close settings to save changes.";
+    }
+
+    [Separator("Per-script controls")]
+    [MultilineTextbox(label: "Disabled scripts", description: "One .csx filename per line. Disabled scripts cannot be started until enabled again. Saved when settings close.")]
+    public string DisabledScriptNames { get => disabledScriptNames; set => SetField(ref disabledScriptNames, value); }
+
+    [Button(label: "Disable Selected Script", description: "Prevents the selected script from launching and requests cancellation if it is running.")]
+    public void DisableSelectedScript()
+    {
+        var name = NormalizeScriptName(SelectedScript);
+        if (!Plugin.Instance.Scripts.ListScripts().Contains(name, StringComparer.OrdinalIgnoreCase))
+        {
+            ScriptStatus = $"Cannot disable {name}: the script does not exist in the Scripts folder.";
+            return;
+        }
+
+        var names = GetDisabledScriptNames();
+        if (!names.Contains(name, StringComparer.OrdinalIgnoreCase))
+        {
+            DisabledScriptNames = string.Join(Environment.NewLine, names.Concat(new[] { name }));
+        }
+
+        var stopRequested = Plugin.Instance.Scripts.Stop(name);
+        ScriptStatus = stopRequested
+            ? $"Disabled {name}; cancellation requested. It may take time to stop if it does not check cancellation."
+            : $"Disabled {name}. It will not start until enabled again.";
+        RefreshStatus();
+    }
+
+    [Button(label: "Enable Selected Script", description: "Allows the selected script to be started again.")]
+    public void EnableSelectedScript()
+    {
+        var name = NormalizeScriptName(SelectedScript);
+        var names = GetDisabledScriptNames();
+        var remaining = names.Where(item => !string.Equals(item, name, StringComparison.OrdinalIgnoreCase)).ToArray();
+        DisabledScriptNames = string.Join(Environment.NewLine, remaining);
+        ScriptStatus = remaining.Length == names.Length
+            ? $"{name} is already enabled."
+            : $"Enabled {name}. Close settings to save changes.";
+        RefreshStatus();
+    }
+
+    public string[] GetDisabledScriptNames()
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in (DisabledScriptNames ?? string.Empty)
+            .Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            try
+            {
+                var name = NormalizeScriptName(entry.Trim());
+                if (!string.IsNullOrWhiteSpace(name))
+                    names.Add(name);
+            }
+            catch (InvalidOperationException)
+            {
+                // Ignore malformed entries so a bad config line cannot prevent plugin startup.
+            }
+        }
+        return names.ToArray();
+    }
+
+    public bool IsScriptDisabled(string name)
+    {
+        try
+        {
+            var normalized = NormalizeScriptName(name);
+            return GetDisabledScriptNames().Contains(normalized, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     public string[] GetAutoStartScriptNames()
@@ -161,7 +235,7 @@ public sealed class Config : INotifyPropertyChanged
             var warnings = CountDiagnostics(diagnostics, "Warning ");
             EditorStatus = started
                 ? warnings > 0 ? $"Saved and started {name} with {warnings} compiler warning(s)." : $"Saved and started {name}."
-                : $"{name} is already running.";
+                : Config.Current.IsScriptDisabled(name) ? $"Run blocked: {name} is disabled. Enable it in Script controls first." : $"{name} is already running or could not be started.";
             RefreshStatus();
         }
         catch (Exception ex) { EditorStatus = $"Run failed: {ex.Message}"; }
@@ -182,7 +256,7 @@ public sealed class Config : INotifyPropertyChanged
     [Button(label: "Start Selected Script", description: "Starts the selected .csx script from disk.")]
     public void StartSelectedScript()
     {
-        try { var name = NormalizeScriptName(SelectedScript); var started = Plugin.Instance.Scripts.Start(name); ScriptStatus = started ? $"Started: {name}" : $"Could not start {name}. It may already be running or the file does not exist."; RefreshStatus(); }
+        try { var name = NormalizeScriptName(SelectedScript); var started = Plugin.Instance.Scripts.Start(name); ScriptStatus = started ? $"Started: {name}" : Config.Current.IsScriptDisabled(name) ? $"Start blocked: {name} is disabled. Enable it first." : $"Could not start {name}. It may already be running or the file does not exist."; RefreshStatus(); }
         catch (Exception ex) { ScriptStatus = $"Start failed: {ex.Message}"; }
     }
 
@@ -214,7 +288,15 @@ public sealed class Config : INotifyPropertyChanged
         if (Plugin.Instance?.Scripts == null) return;
         var files = Plugin.Instance.Scripts.ListScripts();
         var running = Plugin.Instance.Scripts.RunningScripts;
-        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nAvailable ({files.Length}): {string.Join(", ", files)}\nRunning ({running.Length}): {string.Join(", ", running)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
+        var disabled = GetDisabledScriptNames();
+        var statusLines = files.Select(file =>
+        {
+            var state = disabled.Contains(file, StringComparer.OrdinalIgnoreCase)
+                ? "DISABLED"
+                : running.Contains(file, StringComparer.OrdinalIgnoreCase) ? "RUNNING" : "ENABLED / STOPPED";
+            return $"  [{state}] {file}";
+        });
+        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nScript status:\n{string.Join("\n", statusLines)}\n\nRunning ({running.Length}): {string.Join(", ", running)}\nDisabled ({disabled.Length}): {string.Join(", ", disabled)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
     }
 
     private static string NormalizeScriptName(string value)
