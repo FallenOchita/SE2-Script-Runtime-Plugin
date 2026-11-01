@@ -19,7 +19,7 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 - Script logging and a bounded recent-output buffer.
 - Small host API for logging, delays, cancellation checks, and script name.
 
-The editor currently uses a plain multiline text box with a separate, live colorized C# syntax preview that includes a numbered line gutter. Compiler diagnostics are shown in their own panel with severity, line, and column. The editor now also includes a curated code-template picker for logging, delays, cancellation checks, and basic exception handling. Choose a template and select **Insert Selected Completion** to append it to the source. This is a snippet insertion helper, not context-aware IntelliSense; inline error underlining and syntax coloring inside the editable text surface are not implemented yet. The preview's lightweight tokenizer processes each line independently, so it is a visual aid rather than a complete C# parser.
+The editor currently uses a multiline text box with a separate, live colorized C# syntax preview and numbered line gutter. Compiler diagnostics are shown in their own panel with severity, line, and column. The completion picker now changes its candidates when the source ends in `Api.`, `Api.CancellationToken.`, or `TimeSpan.`; it filters members by a partially typed identifier and replaces that unfinished member access when **Insert Selected Completion** is used. Outside those recognized contexts, it offers the existing code templates. This is a limited host-API completion helper, not full Roslyn semantic IntelliSense: it does not track the caret inside the buffer, resolve arbitrary symbols, or provide inline error underlining or syntax coloring in the editable surface. The preview's lightweight tokenizer processes each line independently, so it remains a visual aid rather than a complete C# parser.
 
 ## Important security note
 
@@ -83,9 +83,8 @@ while (!Api.CancellationToken.IsCancellationRequested)
 
 ## Roadmap
 
-- Replace the plain text box with a compatible editable C# editor and context-aware IntelliSense.
+- Replace the plain text box with a compatible editable C# editor and full semantic IntelliSense.
 - Inline diagnostic markers and syntax coloring inside the editable text surface.
-- A compatible editable C# editor with context-aware IntelliSense.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
