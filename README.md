@@ -85,7 +85,7 @@ while (!Api.CancellationToken.IsCancellationRequested)
 
 - Replace the plain text box with a compatible editable C# editor and context-aware IntelliSense.
 - Inline diagnostic markers and syntax coloring inside the editable text surface.
-- Live status refresh while the script-management window remains open.
+- Periodic live status refresh while the script-management window remains open.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
