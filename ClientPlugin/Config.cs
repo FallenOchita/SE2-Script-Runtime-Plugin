@@ -355,6 +355,7 @@ public sealed class Config : INotifyPropertyChanged
 
     public List<ScriptFormattingProfile> FormattingProfiles { get; set; } = new();
 
+    [XmlIgnore]
     [MultilineTextbox(label: "Profile import JSON", description: "Paste a profile export JSON document here. Import validates the entire document before changing saved profiles.")]
     public string FormattingProfilesImportJson
     {
@@ -447,7 +448,9 @@ public sealed class Config : INotifyPropertyChanged
                 if (GetBuiltInFormattingProfiles().Any(profile => string.Equals(profile.Name, name, StringComparison.OrdinalIgnoreCase)))
                     throw new InvalidOperationException($"'{name}' is a built-in profile name and cannot be imported.");
                 if (!Enum.TryParse<ScriptIndentationStyle>(item.IndentationStyle, true, out var style)
-                    || !Enum.IsDefined(typeof(ScriptIndentationStyle), style))
+                    || !Enum.IsDefined(typeof(ScriptIndentationStyle), style)
+                    || !(string.Equals(item.IndentationStyle, nameof(ScriptIndentationStyle.Spaces), StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(item.IndentationStyle, nameof(ScriptIndentationStyle.Tabs), StringComparison.OrdinalIgnoreCase)))
                     throw new InvalidOperationException($"Profile '{name}' has an unsupported indentation style.");
                 if (!Enum.IsDefined(typeof(ScriptIndentationSize), item.IndentationSize))
                     throw new InvalidOperationException($"Profile '{name}' has an unsupported indentation size.");
