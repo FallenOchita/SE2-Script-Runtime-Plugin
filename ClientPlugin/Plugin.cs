@@ -41,6 +41,26 @@ public sealed class Plugin : IPlugin
         }
     }
 
+    public void OpenScriptManagementDialog()
+    {
+        try
+        {
+            var sharedUi = GameAccess.GetSharedUI();
+            if (sharedUi == null)
+            {
+                Log.Default.WriteLine(LogSeverity.Warning, $"[{Name}] SharedUIComponent not available");
+                return;
+            }
+
+            var viewModel = new ScriptManagementViewModel(() => ConfigStorage.Save(Config.Current));
+            sharedUi.CreateScreen<ScriptManagementScreen>(viewModel, showCursor: true);
+        }
+        catch (Exception e)
+        {
+            Log.Default.WriteLine(LogSeverity.Error, $"[{Name}] OpenScriptManagementDialog failed: {e}");
+        }
+    }
+
     public void OpenConfigDialog()
     {
         try
