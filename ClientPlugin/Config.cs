@@ -173,7 +173,28 @@ public sealed class Config : INotifyPropertyChanged
     public void InsertSelectedCompletion()
     {
         if (string.IsNullOrWhiteSpace(SelectedCompletion)) return;
-        EditorSource += (string.IsNullOrEmpty(EditorSource) ? string.Empty : Environment.NewLine) + SelectedCompletion.Replace("\\n", Environment.NewLine);
+
+        var source = EditorSource ?? string.Empty;
+        var memberContexts = new[]
+        {
+            (Pattern: @"Api\.CancellationToken\.[A-Za-z_]\w*$", Prefix: "Api.CancellationToken."),
+            (Pattern: @"TimeSpan\.[A-Za-z_]\w*$", Prefix: "TimeSpan."),
+            (Pattern: @"Api\.[A-Za-z_]\w*$", Prefix: "Api."),
+        };
+
+        foreach (var context in memberContexts)
+        {
+            if (System.Text.RegularExpressions.Regex.IsMatch(source, context.Pattern))
+            {
+                EditorSource = System.Text.RegularExpressions.Regex.Replace(source, context.Pattern,
+                    context.Prefix + SelectedCompletion);
+                EditorStatus = $"Inserted {context.Prefix}{SelectedCompletion}. Review it before saving or running.";
+                return;
+            }
+        }
+
+        EditorSource += (string.IsNullOrEmpty(source) ? string.Empty : Environment.NewLine) +
+            SelectedCompletion.Replace("\\n", Environment.NewLine);
         EditorStatus = "Inserted code template. Review it before saving or running.";
     }
 
