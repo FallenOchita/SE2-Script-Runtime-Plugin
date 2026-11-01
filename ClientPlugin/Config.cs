@@ -60,7 +60,7 @@ public sealed class Config : INotifyPropertyChanged
         {
             var name = NormalizeScriptName(SelectedScript);
             var diagnostics = Plugin.Instance.Scripts.Validate(EditorSource);
-            EditorStatus = diagnostics.Length == 0 ? $"{name}: no compiler errors or warnings." : string.Join("\n", diagnostics);
+            EditorDiagnostics = diagnostics.Length == 0 ? $"{name}: no compiler errors or warnings." : string.Join("\n", diagnostics); EditorStatus = $"Check complete for {name}. {diagnostics.Length} diagnostic(s).";
         }
         catch (Exception ex) { EditorStatus = $"Check failed: {ex.Message}"; }
     }
