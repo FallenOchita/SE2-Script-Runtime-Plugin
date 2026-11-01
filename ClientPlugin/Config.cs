@@ -35,6 +35,11 @@ public sealed class Config : INotifyPropertyChanged
     public void AddSelectedScriptToAutoStart()
     {
         var name = NormalizeScriptName(SelectedScript);
+        if (!Plugin.Instance.Scripts.ListScripts().Contains(name, StringComparer.OrdinalIgnoreCase))
+        {
+            ScriptStatus = $"Cannot add {name}: the script does not exist in the Scripts folder.";
+            return;
+        }
         var names = GetAutoStartScriptNames();
         if (Array.Exists(names, item => string.Equals(item, name, StringComparison.OrdinalIgnoreCase)))
         {
@@ -57,13 +62,25 @@ public sealed class Config : INotifyPropertyChanged
             : $"Removed {name} from auto-start. Close settings to save changes.";
     }
 
-    public string[] GetAutoStartScriptNames() => (AutoStartScriptNames ?? string.Empty)
-        .Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries)
-        .Select(item => item.Trim())
-        .Where(item => !string.IsNullOrWhiteSpace(item))
-        .Select(NormalizeScriptName)
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .ToArray();
+    public string[] GetAutoStartScriptNames()
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in (AutoStartScriptNames ?? string.Empty)
+            .Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            try
+            {
+                var name = NormalizeScriptName(entry.Trim());
+                if (!string.IsNullOrWhiteSpace(name))
+                    names.Add(name);
+            }
+            catch (InvalidOperationException)
+            {
+                // Ignore malformed entries so a bad config line cannot prevent plugin startup.
+            }
+        }
+        return names.ToArray();
+    }
 
     [Separator("In-game script editor")]
     [Textbox(label: "Script filename", description: "Use a filename such as Example.csx. Files are stored in the plugin Scripts folder.")]
