@@ -13,6 +13,8 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 - In-game editor controls to load, edit, save, check, and run a selected script.
 - Roslyn compiler errors and warnings with line and column locations. The **Save and Run Script** action checks the current editor contents first and blocks launch when compiler errors are present; warnings are shown but do not block launch. The runtime repeats this validation for scripts launched from disk, including Start All and auto-start, so those paths cannot bypass the compile gate.
 - Per-script auto-start list, disabled by default. Add or remove the selected `.csx` file from the list; when enabled, only listed scripts are launched on plugin startup. The settings dialog saves the list to `Config.xml` when closed.
+- Persistent per-script enable/disable controls. Disabled scripts are blocked from individual starts, Start All, editor Save and Run, and auto-start. Disabling a running script requests cooperative cancellation; it may not stop promptly if the script does not observe its cancellation token. The settings dialog saves the disabled list when closed.
+- Per-script status display showing enabled/stopped, running, or disabled state.
 - Script logging and a bounded recent-output buffer.
 - Small host API for logging, delays, cancellation checks, and script name.
 
@@ -63,6 +65,7 @@ dotnet build ClientPlugin/ClientPlugin.csproj -c Release
 5. Select **Save and Run Script** to save the editor contents and start the script.
 6. Use **Stop Selected Script** to request cancellation.
 7. To configure startup scripts, select a filename, choose **Add Selected Script to Auto-start**, and enable **Enable configured auto-start**. Remove entries with **Remove Selected Script from Auto-start**. The list is saved when the settings window closes.
+8. Use **Disable Selected Script** to block a script from all launch paths, or **Enable Selected Script** to allow it to run again. Disabling a running script requests cancellation. Review the per-script status display after refreshing.
 
 Scripts are stored in the plugin's `Scripts` data folder. The plugin logs the full folder path when it starts.
 
@@ -81,7 +84,7 @@ while (!Api.CancellationToken.IsCancellationRequested)
 
 - Replace the plain text box with a compatible editable C# editor and context-aware IntelliSense.
 - Inline diagnostic markers and syntax coloring inside the editable text surface.
-- Per-script runtime enable/disable controls and a dedicated startup-management view.
+- Dedicated startup-management view with bulk controls.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
