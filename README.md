@@ -19,7 +19,7 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 - Script logging and a bounded recent-output buffer.
 - Small host API for logging, delays, cancellation checks, and script name.
 
-The editor uses AvaloniaEdit with line numbers, word wrapping, and TextMate C# syntax highlighting directly in the editable surface. Compiler diagnostics are shown in their own panel with severity, line, and column. The completion picker now changes its candidates when the source ends in `Api.`, `Api.CancellationToken.`, or `TimeSpan.`; it filters members by a partially typed identifier and replaces that unfinished member access when **Insert Selected Completion** is used. Outside those recognized contexts, it offers the existing code templates. This is a limited host-API completion helper, not full Roslyn semantic IntelliSense: it does not track the caret inside the buffer, resolve arbitrary symbols, or provide inline error underlining in the editable surface. The editor's syntax colors come from the bundled TextMate C# grammar; compiler diagnostics continue to come from Roslyn.
+The editor uses AvaloniaEdit with line numbers, word wrapping, and TextMate C# syntax highlighting directly in the editable surface. Compiler diagnostics are shown in their own panel with severity, line, and column; after **Check Script** or **Save and Run Script**, Roslyn error and warning spans are also highlighted inline in the editor (red for errors, amber for warnings). The completion picker now changes its candidates when the source ends in `Api.`, `Api.CancellationToken.`, or `TimeSpan.`; it filters members by a partially typed identifier and replaces that unfinished member access when **Insert Selected Completion** is used. Outside those recognized contexts, it offers the existing code templates. This is a limited host-API completion helper, not full Roslyn semantic IntelliSense: it does not track the caret inside the buffer, resolve arbitrary symbols, or provide caret-aware semantic IntelliSense. Inline compiler diagnostics are limited to source-span background highlights; they are not a full IDE-style squiggle/quick-fix system. The editor's syntax colors come from the bundled TextMate C# grammar; compiler diagnostics continue to come from Roslyn.
 
 ## Important security note
 
@@ -83,7 +83,7 @@ while (!Api.CancellationToken.IsCancellationRequested)
 
 ## Roadmap
 
-- Add inline Roslyn diagnostic markers and caret-aware semantic IntelliSense to the editor.
+- Add caret-aware semantic IntelliSense and richer diagnostic navigation/quick fixes to the editor.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
