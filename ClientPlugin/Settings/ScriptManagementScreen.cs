@@ -62,6 +62,7 @@ internal sealed class ScriptManagementScreen : ScreenView
         search = new TextBox
         {
             Watermark = "Search scripts by filename...",
+            Width = 620,
             Height = 44,
             FontSize = 18,
             HorizontalAlignment = HorizontalAlignment.Stretch
@@ -109,6 +110,7 @@ internal sealed class ScriptManagementScreen : ScreenView
             BorderBrush = new SolidColorBrush(Color.FromRgb(77, 99, 96)),
             BorderThickness = new Thickness(1),
             Padding = new Thickness(10),
+            Height = 520,
             Child = new ScrollViewer
             {
                 Content = rows,
