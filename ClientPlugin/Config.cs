@@ -249,7 +249,7 @@ public sealed class Config : INotifyPropertyChanged
     public void InsertCancellationLoop() => EditorSource += (string.IsNullOrEmpty(EditorSource) ? string.Empty : Environment.NewLine) +
         "while (!Api.CancellationToken.IsCancellationRequested)\n{\n    await Api.Delay(TimeSpan.FromSeconds(1));\n    Api.Log(\"Running\");\n}";
 
-    [Separator("Script controls")]
+    [Separator("Script management")]
     [Button(label: "Refresh Script List", description: "Rescan the Scripts folder and update runtime status.")]
     public void RefreshScriptList() => RefreshStatus();
 
@@ -267,8 +267,29 @@ public sealed class Config : INotifyPropertyChanged
         catch (Exception ex) { ScriptStatus = $"Stop failed: {ex.Message}"; }
     }
 
-    [Button(label: "Start All Scripts", description: "Starts every .csx file in the Scripts folder.")]
-    public void StartAllScripts() { var count = Plugin.Instance.Scripts.StartAll(); ScriptStatus = $"Start requested for {count} script(s)."; RefreshStatus(); }
+    [Button(label: "Enable All Scripts", description: "Clears the disabled list so every script can be started again.")]
+    public void EnableAllScripts()
+    {
+        var previous = GetDisabledScriptNames();
+        DisabledScriptNames = string.Empty;
+        ScriptStatus = previous.Length == 0
+            ? "All scripts were already enabled."
+            : $"Enabled all scripts. Cleared {previous.Length} disabled entry/entries. Close settings to save changes.";
+        RefreshStatus();
+    }
+
+    [Button(label: "Disable All Scripts", description: "Disables every script currently in the Scripts folder and requests cancellation of running scripts.")]
+    public void DisableAllScripts()
+    {
+        var files = Plugin.Instance.Scripts.ListScripts();
+        DisabledScriptNames = string.Join(Environment.NewLine, files);
+        var stopped = Plugin.Instance.Scripts.StopAll();
+        ScriptStatus = $"Disabled {files.Length} script(s). Cancellation requested for {stopped} running script(s). Close settings to save changes.";
+        RefreshStatus();
+    }
+
+    [Button(label: "Start All Enabled Scripts", description: "Starts scripts that are not disabled. Compiler errors still block launch.")]
+    public void StartAllScripts() { var count = Plugin.Instance.Scripts.StartAll(); ScriptStatus = $"Start requested for {count} enabled script(s). Disabled scripts were skipped."; RefreshStatus(); }
 
     [Button(label: "Stop All Scripts", description: "Requests cancellation of every running script.")]
     public void StopAllScripts() { var count = Plugin.Instance.Scripts.StopAll(); ScriptStatus = $"Stop requested for {count} script(s)."; RefreshStatus(); }
@@ -296,7 +317,9 @@ public sealed class Config : INotifyPropertyChanged
                 : running.Contains(file, StringComparer.OrdinalIgnoreCase) ? "RUNNING" : "ENABLED / STOPPED";
             return $"  [{state}] {file}";
         });
-        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nScript status:\n{string.Join("\n", statusLines)}\n\nRunning ({running.Length}): {string.Join(", ", running)}\nDisabled ({disabled.Length}): {string.Join(", ", disabled)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
+        var disabledFileCount = files.Count(file => disabled.Contains(file, StringComparer.OrdinalIgnoreCase));
+        var enabledCount = files.Length - disabledFileCount;
+        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nSummary: {files.Length} total | {enabledCount} enabled | {disabledFileCount} disabled | {running.Length} running\nScript status:\n{string.Join("\n", statusLines)}\n\nRunning ({running.Length}): {string.Join(", ", running)}\nDisabled ({disabled.Length} configured): {string.Join(", ", disabled)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
     }
 
     private static string NormalizeScriptName(string value)
