@@ -20,6 +20,8 @@ public sealed class Config : INotifyPropertyChanged
     private string editorDiagnostics = "No diagnostics yet. Select Check Script to compile the editor contents.";
     private string editorDiagnosticsSummary = "Not checked yet.";
     private ScriptDiagnosticInfo[] editorDiagnosticMarkers = Array.Empty<ScriptDiagnosticInfo>();
+    private int editorNavigationOffset;
+    private int editorNavigationVersion;
     private string selectedCompletion = "Api.Log(\"Your message here\");";
 
     [XmlIgnore]
@@ -211,6 +213,34 @@ public sealed class Config : INotifyPropertyChanged
         private set => SetField(ref editorDiagnosticMarkers, value ?? Array.Empty<ScriptDiagnosticInfo>());
     }
 
+    [XmlIgnore]
+    public ScriptDiagnosticInfo[] EditorDiagnosticItems
+    {
+        get => editorDiagnosticMarkers;
+        private set => SetField(ref editorDiagnosticMarkers, value ?? Array.Empty<ScriptDiagnosticInfo>());
+    }
+
+    [XmlIgnore]
+    public int EditorNavigationOffset
+    {
+        get => editorNavigationOffset;
+        private set => SetField(ref editorNavigationOffset, value);
+    }
+
+    [XmlIgnore]
+    public int EditorNavigationVersion
+    {
+        get => editorNavigationVersion;
+        private set => SetField(ref editorNavigationVersion, value);
+    }
+
+    public void NavigateToDiagnostic(ScriptDiagnosticInfo diagnostic)
+    {
+        if (diagnostic == null) return;
+        EditorNavigationOffset = diagnostic.StartOffset;
+        EditorNavigationVersion++;
+    }
+
     private void ApplyEditorDiagnostics(ScriptDiagnosticInfo[] diagnostics)
     {
         EditorDiagnosticMarkers = diagnostics ?? Array.Empty<ScriptDiagnosticInfo>();
@@ -219,8 +249,12 @@ public sealed class Config : INotifyPropertyChanged
     [Textbox(label: "Diagnostic summary", description: "Counts from the most recent compile check.")]
     public string EditorDiagnosticsSummary { get => editorDiagnosticsSummary; set => SetField(ref editorDiagnosticsSummary, value); }
 
-    [MultilineTextbox(label: "Compiler diagnostics", description: "Errors and warnings from the most recent Check Script operation.")]
-    public string EditorDiagnostics { get => editorDiagnostics; set => SetField(ref editorDiagnostics, value); }
+    [DiagnosticList(label: "Compiler diagnostics", description: "Select a diagnostic to jump to its source location in the editor.")]
+    public ScriptDiagnosticInfo[] EditorDiagnosticItemsForDisplay
+    {
+        get => editorDiagnosticMarkers;
+        set => ApplyEditorDiagnostics(value);
+    }
 
     [MultilineTextbox(label: "Editor messages", description: "Load/save results and compiler diagnostics appear here.")]
     public string EditorStatus { get => editorStatus; set => SetField(ref editorStatus, value); }
