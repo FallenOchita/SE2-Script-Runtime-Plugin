@@ -79,7 +79,7 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
                 return;
             }
 
-            ToolTip.SetTip(textView, $"{diagnostic.Severity} {diagnostic.Id} (line {diagnostic.Line}, column {diagnostic.Column})\\n{diagnostic.Message}");
+            ToolTip.SetTip(textView, $"{diagnostic.Severity} {diagnostic.Id} (line {diagnostic.Line}, column {diagnostic.Column})\n{diagnostic.Message}");
             ToolTip.SetIsOpen(textView, true);
         }
 
