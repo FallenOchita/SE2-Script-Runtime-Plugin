@@ -74,6 +74,26 @@ public sealed class ScriptManager
         return started;
     }
 
+    public int StartConfigured(string[] scriptNames)
+    {
+        var started = 0;
+        foreach (var name in (scriptNames ?? Array.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (Start(name))
+                    started++;
+                else
+                    ScriptLogger.Write(name, "Auto-start skipped: script is missing, already running, or failed validation.");
+            }
+            catch (Exception ex)
+            {
+                ScriptLogger.Write(name, $"Auto-start failed: {ex.Message}");
+            }
+        }
+        return started;
+    }
+
     public bool Start(string pathOrName)
     {
         var fullPath = Path.IsPathRooted(pathOrName) ? Path.GetFullPath(pathOrName) : ResolveScriptPath(pathOrName);
