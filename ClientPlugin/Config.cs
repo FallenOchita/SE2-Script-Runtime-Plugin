@@ -40,6 +40,7 @@ public sealed class Config : INotifyPropertyChanged
     private string selectedCompletion = "Api.Log(\"Your message here\");";
     private ScriptIndentationStyle editorIndentationStyle = ScriptIndentationStyle.Spaces;
     private ScriptIndentationSize editorIndentationSize = ScriptIndentationSize.Four;
+    private bool formatOnSave;
 
     [XmlIgnore]
     public readonly string Title = "SE2 Script Manager";
@@ -294,7 +295,24 @@ public sealed class Config : INotifyPropertyChanged
     [Button(label: "Save Script", description: "Saves the editor contents to the selected .csx file.")]
     public void SaveEditorScript()
     {
-        try { var name = NormalizeScriptName(SelectedScript); Plugin.Instance.Scripts.SaveScript(name, EditorSource); EditorStatus = $"Saved {name}."; EditorDiagnosticsSummary = "Not checked yet."; EditorDiagnostics = "Saved. Run Check Script to refresh diagnostics."; RefreshStatus(); }
+        try
+        {
+            var name = NormalizeScriptName(SelectedScript);
+            if (FormatOnSave)
+            {
+                EditorSource = FormatSource(EditorSource);
+                EditorNavigationOffset = 0;
+                EditorNavigationVersion++;
+            }
+
+            Plugin.Instance.Scripts.SaveScript(name, EditorSource);
+            EditorStatus = FormatOnSave ? $"Formatted and saved {name}." : $"Saved {name}.";
+            EditorDiagnosticsSummary = "Not checked yet.";
+            EditorDiagnostics = FormatOnSave
+                ? "Formatted and saved. Run Check Script to refresh diagnostics."
+                : "Saved. Run Check Script to refresh diagnostics.";
+            RefreshStatus();
+        }
         catch (Exception ex) { EditorStatus = $"Save failed: {ex.Message}"; }
     }
 
@@ -313,21 +331,26 @@ public sealed class Config : INotifyPropertyChanged
         set => SetField(ref editorIndentationSize, value);
     }
 
+    [Checkbox(label: "Format on save", description: "Automatically formats the entire editor before Save Script and Save and Run Script. Disabled by default.")]
+    public bool FormatOnSave { get => formatOnSave; set => SetField(ref formatOnSave, value); }
+
+    private string FormatSource(string source)
+    {
+        var parseOptions = CSharpParseOptions.Default.WithKind(SourceCodeKind.Script);
+        var syntaxTree = CSharpSyntaxTree.ParseText(source ?? string.Empty, parseOptions);
+        var root = syntaxTree.GetRoot();
+        var indentation = ScriptIndentationStyle == ScriptIndentationStyle.Tabs
+            ? "\t"
+            : new string(' ', (int)ScriptIndentationSize);
+        return root.NormalizeWhitespace(indentation, Environment.NewLine, elasticTrivia: false).ToFullString();
+    }
+
     [Button(label: "Format Editor Source", description: "Formats the entire editor using the selected indentation style and width. Review the result, then run Check Script.")]
     public void FormatEditorSource()
     {
         try
         {
-            var source = EditorSource ?? string.Empty;
-            var parseOptions = CSharpParseOptions.Default.WithKind(SourceCodeKind.Script);
-            var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
-            var root = syntaxTree.GetRoot();
-            var indentation = ScriptIndentationStyle == ScriptIndentationStyle.Tabs
-                ? "\t"
-                : new string(' ', (int)ScriptIndentationSize);
-            var formatted = root.NormalizeWhitespace(indentation, Environment.NewLine, elasticTrivia: false).ToFullString();
-
-            EditorSource = formatted;
+            EditorSource = FormatSource(EditorSource);
             EditorDiagnosticsSummary = "Not checked yet.";
             EditorDiagnostics = "Source formatted. Run Check Script to refresh compiler diagnostics.";
             EditorStatus = $"Formatted the entire editor source using {ScriptIndentationStyle.ToString().ToLowerInvariant()} with width {(int)ScriptIndentationSize}. Review the changes before saving or running.";
@@ -362,6 +385,13 @@ public sealed class Config : INotifyPropertyChanged
         try
         {
             var name = NormalizeScriptName(SelectedScript);
+            if (FormatOnSave)
+            {
+                EditorSource = FormatSource(EditorSource);
+                EditorNavigationOffset = 0;
+                EditorNavigationVersion++;
+            }
+
             var details = Plugin.Instance.Scripts.ValidateDetailed(EditorSource);
             var diagnostics = details.Select(d => d.ToString()).ToArray();
             ApplyEditorDiagnostics(details);
