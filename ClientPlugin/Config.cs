@@ -250,6 +250,9 @@ public sealed class Config : INotifyPropertyChanged
         "while (!Api.CancellationToken.IsCancellationRequested)\n{\n    await Api.Delay(TimeSpan.FromSeconds(1));\n    Api.Log(\"Running\");\n}";
 
     [Separator("Script management")]
+    [Button(label: "Open Script Management Window", description: "Opens a searchable, sortable list with multi-select enable, disable, start, stop, and auto-start actions.")]
+    public void OpenScriptManagementWindow() => Plugin.Instance.OpenScriptManagementDialog();
+
     [Button(label: "Refresh Script List", description: "Rescan the Scripts folder and update runtime status.")]
     public void RefreshScriptList() => RefreshStatus();
 
