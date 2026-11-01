@@ -234,6 +234,19 @@ public sealed class Config : INotifyPropertyChanged
         EditorNavigationVersion++;
     }
 
+    public void ApplyDiagnosticQuickFix(ScriptDiagnosticInfo diagnostic)
+    {
+        if (diagnostic == null || !ScriptDiagnosticQuickFix.TryGetInsertion(diagnostic, out var insertion, out var title))
+            return;
+
+        var source = EditorSource ?? string.Empty;
+        var offset = Math.Clamp(diagnostic.StartOffset, 0, source.Length);
+        EditorSource = source.Insert(offset, insertion);
+        EditorStatus = $"Applied quick fix: {title}. Review the change, then run Check Script again.";
+        EditorNavigationOffset = Math.Min(offset, EditorSource.Length);
+        EditorNavigationVersion++;
+    }
+
     private void ApplyEditorDiagnostics(ScriptDiagnosticInfo[] diagnostics)
     {
         EditorDiagnosticMarkers = diagnostics ?? Array.Empty<ScriptDiagnosticInfo>();
