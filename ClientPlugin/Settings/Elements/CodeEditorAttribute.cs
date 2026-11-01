@@ -66,6 +66,14 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
             {
                 editor.TextArea.TextView.Redraw();
             }
+            else if (args.PropertyName == nameof(Config.EditorNavigationVersion))
+            {
+                var offset = Math.Clamp(Config.Current.EditorNavigationOffset, 0, editor.Document.TextLength);
+                var line = editor.Document.GetLineByOffset(offset).LineNumber;
+                editor.ScrollToLine(line);
+                editor.TextArea.Caret.Offset = offset;
+                editor.TextArea.Focus();
+            }
         };
         Config.Current.PropertyChanged += handler;
         editor.DetachedFromVisualTree += (_, _) => Config.Current.PropertyChanged -= handler;
