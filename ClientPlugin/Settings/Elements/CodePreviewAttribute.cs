@@ -11,7 +11,7 @@ namespace SE2ScriptRuntime.Settings.Elements;
 internal sealed class CodePreviewAttribute : Attribute, IElement
 {
     private static readonly Regex Tokens = new(
-        @"(?<comment>//[^\r\n]*|/\*[\s\S]*?\*/)|(?<string>@?""(?:\.|[^""\])*""|'(?:\\.|[^'\\])*')|(?<keyword>\b(?:using|namespace|class|public|private|static|void|int|string|bool|var|new|return|if|else|while|for|foreach|await|async|try|catch|throw|true|false|null|this|in|is|as)\b)|(?<api>\b(?:Api|TimeSpan|CancellationToken|Task|Console)\b)|(?<number>\b\d+(?:\.\d+)?\b)",
+        @"(?<comment>//[^\r\n]*|/\*[\s\S]*?\*/)|(?<string>""[^""\r\n]*""|\x27[^\x27\r\n]*\x27)|(?<keyword>\b(?:using|namespace|class|public|private|static|void|int|string|bool|var|new|return|if|else|while|for|foreach|await|async|try|catch|throw|true|false|null|this|in|is|as)\b)|(?<api>\b(?:Api|TimeSpan|CancellationToken|Task|Console)\b)|(?<number>\b\d+(?:\.\d+)?\b)",
         RegexOptions.Compiled);
 
     public readonly string Label;
@@ -36,7 +36,7 @@ internal sealed class CodePreviewAttribute : Attribute, IElement
 
         System.ComponentModel.PropertyChangedEventHandler handler = (_, args) =>
         {
-            if (args.PropertyName == name)
+            if (args.PropertyName == name || args.PropertyName == "EditorSource")
                 UpdatePreview(preview, getter()?.ToString() ?? string.Empty);
         };
         Config.Current.PropertyChanged += handler;
