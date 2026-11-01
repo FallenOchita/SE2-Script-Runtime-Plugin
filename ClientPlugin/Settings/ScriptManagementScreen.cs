@@ -199,7 +199,7 @@ internal sealed class ScriptManagementScreen : ScreenView
             var state = GetState(name, disabled, running);
             var auto = autoStart.Contains(name, StringComparer.OrdinalIgnoreCase) ? "AUTO-START" : "";
             var check = new CheckBox { IsChecked = selected.Contains(name), VerticalAlignment = VerticalAlignment.Center };
-            check.IsCheckedChanged += (_, _) =>
+            check.Click += (_, _) =>
             {
                 if (check.IsChecked == true) selected.Add(name);
                 else selected.Remove(name);
