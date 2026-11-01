@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Markup.Xaml.Styling;
 using AvaloniaEdit;
@@ -42,9 +43,51 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
             FontSize = 14,
         };
 
+        var textView = editor.TextArea.TextView;
         var diagnosticTransformer = new RoslynDiagnosticTransformer(
             () => Config.Current?.EditorDiagnosticMarkers ?? Array.Empty<ScriptDiagnosticInfo>());
-        editor.TextArea.TextView.LineTransformers.Add(diagnosticTransformer);
+        textView.LineTransformers.Add(diagnosticTransformer);
+
+        void CloseDiagnosticTooltip()
+        {
+            ToolTip.SetIsOpen(textView, false);
+            ToolTip.SetTip(textView, null);
+        }
+
+        void OnPointerHover(object sender, PointerEventArgs args)
+        {
+            var visualPosition = args.GetPosition(textView) + textView.ScrollOffset;
+            var textPosition = textView.GetPosition(visualPosition);
+            if (!textPosition.HasValue)
+            {
+                CloseDiagnosticTooltip();
+                return;
+            }
+
+            var line = editor.Document.GetLineByNumber(textPosition.Value.Line);
+            var offset = Math.Clamp(line.Offset + textPosition.Value.Column - 1, line.Offset, line.EndOffset);
+            var diagnostic = (Config.Current?.EditorDiagnosticMarkers ?? Array.Empty<ScriptDiagnosticInfo>())
+                .FirstOrDefault(item =>
+                {
+                    var spanLength = Math.Max(1, item.Length);
+                    return offset >= item.StartOffset && offset < item.StartOffset + spanLength;
+                });
+
+            if (diagnostic == null)
+            {
+                CloseDiagnosticTooltip();
+                return;
+            }
+
+            ToolTip.SetTip(textView, $"{diagnostic.Severity} {diagnostic.Id} (line {diagnostic.Line}, column {diagnostic.Column})\n{diagnostic.Message}");
+            ToolTip.SetIsOpen(textView, true);
+        }
+
+        void OnPointerHoverStopped(object sender, PointerEventArgs args)
+            => CloseDiagnosticTooltip();
+
+        textView.PointerHover += OnPointerHover;
+        textView.PointerHoverStopped += OnPointerHoverStopped;
 
         var registryOptions = new RegistryOptions(ThemeName.DarkPlus);
         var textMate = editor.InstallTextMate(registryOptions);
@@ -64,7 +107,8 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
             }
             else if (args.PropertyName == nameof(Config.EditorDiagnosticMarkers))
             {
-                editor.TextArea.TextView.Redraw();
+                CloseDiagnosticTooltip();
+                textView.Redraw();
             }
             else if (args.PropertyName == nameof(Config.EditorNavigationVersion))
             {
@@ -76,7 +120,13 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
             }
         };
         Config.Current.PropertyChanged += handler;
-        editor.DetachedFromVisualTree += (_, _) => Config.Current.PropertyChanged -= handler;
+        editor.DetachedFromVisualTree += (_, _) =>
+        {
+            Config.Current.PropertyChanged -= handler;
+            textView.PointerHover -= OnPointerHover;
+            textView.PointerHoverStopped -= OnPointerHoverStopped;
+            CloseDiagnosticTooltip();
+        };
 
         return RowBuilder.NewRow(
             Tools.Tools.GetLabelOrDefault(name, Label),
