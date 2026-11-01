@@ -55,7 +55,22 @@ internal sealed class DiagnosticListAttribute : Attribute, IElement
                     },
                 };
                 button.Click += (_, _) => Config.Current?.NavigateToDiagnostic(diagnostic);
-                list.Children.Add(button);
+
+                var row = new StackPanel { Spacing = 4 };
+                row.Children.Add(button);
+                if (ScriptDiagnosticQuickFix.TryGetInsertion(diagnostic, out _, out var fixTitle))
+                {
+                    var fixButton = new Button
+                    {
+                        Content = fixTitle,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Padding = new Thickness(8, 4),
+                    };
+                    fixButton.Click += (_, _) => Config.Current?.ApplyDiagnosticQuickFix(diagnostic);
+                    row.Children.Add(fixButton);
+                }
+
+                list.Children.Add(row);
             }
         }
 
