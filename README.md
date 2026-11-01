@@ -9,9 +9,9 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 ## Current features
 
 - Creates a per-plugin data directory and a `Scripts` folder.
-- Lists `.csx` scripts and supports starting/stopping one or all scripts.
+- Lists `.csx` scripts and supports starting/stopping one or all scripts. Every launch path (individual start, Start All, and auto-start) compiles the script first and blocks launch on compiler errors; warnings are logged.
 - In-game editor controls to load, edit, save, check, and run a selected script.
-- Roslyn compiler errors and warnings with line and column locations. The **Save and Run Script** action checks the current editor contents first and blocks launch when compiler errors are present; warnings are shown but do not block launch.
+- Roslyn compiler errors and warnings with line and column locations. The **Save and Run Script** action checks the current editor contents first and blocks launch when compiler errors are present; warnings are shown but do not block launch. The runtime repeats this validation for scripts launched from disk, including Start All and auto-start, so those paths cannot bypass the compile gate.
 - Optional auto-start, disabled by default.
 - Script logging and a bounded recent-output buffer.
 - Small host API for logging, delays, cancellation checks, and script name.
