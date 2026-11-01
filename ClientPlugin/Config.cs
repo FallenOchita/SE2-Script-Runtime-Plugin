@@ -15,6 +15,7 @@ public sealed class Config : INotifyPropertyChanged
     private string editorSource = string.Empty;
     private string editorStatus = "Load a script to begin editing.";
     private string editorDiagnostics = "No diagnostics yet. Select Check Script to compile the editor contents.";
+    private string selectedCompletion = "Api.Log(\"Your message here\");";
 
     [XmlIgnore]
     public readonly string Title = "SE2 Script Manager";
@@ -32,6 +33,17 @@ public sealed class Config : INotifyPropertyChanged
 
     [CodePreview(label: "Syntax preview", description: "A read-only colorized preview of common C# tokens. The editing field remains plain text.")]
     public string HighlightedPreview { get => EditorSource; set => EditorSource = value; }
+
+    [CompletionPicker(label: "Code completion helpers", description: "Choose a known host-API snippet, then insert it into the editor. These are templates, not context-aware IntelliSense.")]
+    public string SelectedCompletion { get => selectedCompletion; set => SetField(ref selectedCompletion, value); }
+
+    [Button(label: "Insert Selected Completion", description: "Appends the selected code template to the editor source.")]
+    public void InsertSelectedCompletion()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedCompletion)) return;
+        EditorSource += (string.IsNullOrEmpty(EditorSource) ? string.Empty : Environment.NewLine) + SelectedCompletion.Replace("\\n", Environment.NewLine);
+        EditorStatus = "Inserted code template. Review it before saving or running.";
+    }
 
     [MultilineTextbox(label: "Compiler diagnostics", description: "Errors and warnings from the most recent Check Script operation.")]
     public string EditorDiagnostics { get => editorDiagnostics; set => SetField(ref editorDiagnostics, value); }
