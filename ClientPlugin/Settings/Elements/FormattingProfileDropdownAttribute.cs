@@ -59,11 +59,16 @@ internal sealed class FormattingProfileDropdownAttribute : Attribute, IElement
         };
 
         if (Config.Current != null)
-            Config.Current.PropertyChanged += (_, args) =>
+        {
+            System.ComponentModel.PropertyChangedEventHandler handler = (_, args) =>
             {
-                if (args.PropertyName == nameof(Config.FormattingProfiles))
+                if (args.PropertyName == nameof(Config.FormattingProfiles)
+                    || args.PropertyName == nameof(Config.SelectedFormattingProfile))
                     RefreshOptions();
             };
+            Config.Current.PropertyChanged += handler;
+            comboBox.DetachedFromVisualTree += (_, _) => Config.Current.PropertyChanged -= handler;
+        }
 
         return RowBuilder.NewRow(Tools.Tools.GetLabelOrDefault(name, Label), Description, comboBox);
     }
