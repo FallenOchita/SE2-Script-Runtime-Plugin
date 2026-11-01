@@ -12,7 +12,7 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 - Lists `.csx` scripts and supports starting/stopping one or all scripts. Every launch path (individual start, Start All, and auto-start) compiles the script first and blocks launch on compiler errors; warnings are logged.
 - In-game editor controls to load, edit, save, check, and run a selected script.
 - Roslyn compiler errors and warnings with line and column locations. The **Save and Run Script** action checks the current editor contents first and blocks launch when compiler errors are present; warnings are shown but do not block launch. The runtime repeats this validation for scripts launched from disk, including Start All and auto-start, so those paths cannot bypass the compile gate.
-- Optional auto-start, disabled by default.
+- Per-script auto-start list, disabled by default. Add or remove the selected `.csx` file from the list; when enabled, only listed scripts are launched on plugin startup. The settings dialog saves the list to `Config.xml` when closed.
 - Script logging and a bounded recent-output buffer.
 - Small host API for logging, delays, cancellation checks, and script name.
 
@@ -62,6 +62,7 @@ dotnet build ClientPlugin/ClientPlugin.csproj -c Release
 4. Select **Check Script** to see compiler errors and warnings.
 5. Select **Save and Run Script** to save the editor contents and start the script.
 6. Use **Stop Selected Script** to request cancellation.
+7. To configure startup scripts, select a filename, choose **Add Selected Script to Auto-start**, and enable **Enable configured auto-start**. Remove entries with **Remove Selected Script from Auto-start**. The list is saved when the settings window closes.
 
 Scripts are stored in the plugin's `Scripts` data folder. The plugin logs the full folder path when it starts.
 
@@ -80,7 +81,7 @@ while (!Api.CancellationToken.IsCancellationRequested)
 
 - Replace the plain text box with a compatible editable C# editor and context-aware IntelliSense.
 - Inline diagnostic markers and syntax coloring inside the editable text surface.
-- Per-script enable/disable and persisted startup settings.
+- Per-script runtime enable/disable controls and a dedicated startup-management view.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
