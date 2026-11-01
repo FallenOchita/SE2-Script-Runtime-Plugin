@@ -82,6 +82,24 @@ public sealed class ScriptManager
             throw new InvalidOperationException("Scripts must be located inside the configured Scripts directory.");
         if (!File.Exists(fullPath)) return false;
         var name = Path.GetFileName(fullPath);
+        if (_running.ContainsKey(name)) return false;
+
+        // Apply the same compile gate to every launch path, including Start All
+        // and auto-start. Editor-only validation would leave those paths unchecked.
+        var diagnostics = Validate(File.ReadAllText(fullPath));
+        var errors = diagnostics.Where(d => d.StartsWith("Error ", StringComparison.Ordinal)).ToArray();
+        if (errors.Length > 0)
+        {
+            ScriptLogger.Write(name, $"Launch blocked: {errors.Length} compiler error(s).");
+            foreach (var diagnostic in errors)
+                ScriptLogger.Write(name, diagnostic);
+            return false;
+        }
+
+        var warnings = diagnostics.Where(d => d.StartsWith("Warning ", StringComparison.Ordinal)).ToArray();
+        foreach (var warning in warnings)
+            ScriptLogger.Write(name, warning);
+
         var cts = new CancellationTokenSource();
         var state = new RunningScript(cts);
         if (!_running.TryAdd(name, state)) { cts.Dispose(); return false; }
