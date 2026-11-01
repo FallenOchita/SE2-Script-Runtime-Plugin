@@ -5,6 +5,8 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
 using SE2ScriptRuntime.Settings.Elements;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace SE2ScriptRuntime;
 
@@ -279,6 +281,30 @@ public sealed class Config : INotifyPropertyChanged
     {
         try { var name = NormalizeScriptName(SelectedScript); Plugin.Instance.Scripts.SaveScript(name, EditorSource); EditorStatus = $"Saved {name}."; EditorDiagnosticsSummary = "Not checked yet."; EditorDiagnostics = "Saved. Run Check Script to refresh diagnostics."; RefreshStatus(); }
         catch (Exception ex) { EditorStatus = $"Save failed: {ex.Message}"; }
+    }
+
+    [Button(label: "Format Editor Source", description: "Formats the entire editor using four-space indentation and standard C# spacing. Review the result, then run Check Script.")]
+    public void FormatEditorSource()
+    {
+        try
+        {
+            var source = EditorSource ?? string.Empty;
+            var parseOptions = CSharpParseOptions.Default.WithKind(SourceCodeKind.Script);
+            var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
+            var root = syntaxTree.GetRoot();
+            var formatted = root.NormalizeWhitespace("    ", Environment.NewLine, elasticTrivia: false).ToFullString();
+
+            EditorSource = formatted;
+            EditorDiagnosticsSummary = "Not checked yet.";
+            EditorDiagnostics = "Source formatted. Run Check Script to refresh compiler diagnostics.";
+            EditorStatus = "Formatted the entire editor source with four-space indentation. Review the changes before saving or running.";
+            EditorNavigationOffset = 0;
+            EditorNavigationVersion++;
+        }
+        catch (Exception ex)
+        {
+            EditorStatus = $"Formatting failed: {ex.Message}";
+        }
     }
 
     [Button(label: "Check Script", description: "Compiles the editor contents and displays errors and warnings without running it.")]
