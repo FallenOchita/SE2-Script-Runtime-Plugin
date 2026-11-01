@@ -10,13 +10,13 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace SE2ScriptRuntime;
 
-public enum EditorIndentationStyle
+public enum ScriptIndentationStyle
 {
     Spaces,
     Tabs,
 }
 
-public enum EditorIndentationSize
+public enum ScriptIndentationSize
 {
     Two = 2,
     Four = 4,
@@ -38,8 +38,8 @@ public sealed class Config : INotifyPropertyChanged
     private int editorNavigationOffset;
     private int editorNavigationVersion;
     private string selectedCompletion = "Api.Log(\"Your message here\");";
-    private EditorIndentationStyle editorIndentationStyle = EditorIndentationStyle.Spaces;
-    private EditorIndentationSize editorIndentationSize = EditorIndentationSize.Four;
+    private ScriptIndentationStyle editorIndentationStyle = ScriptIndentationStyle.Spaces;
+    private ScriptIndentationSize editorIndentationSize = ScriptIndentationSize.Four;
 
     [XmlIgnore]
     public readonly string Title = "SE2 Script Manager";
@@ -300,14 +300,14 @@ public sealed class Config : INotifyPropertyChanged
 
     [Separator("Editor formatting")]
     [Dropdown(label: "Indentation style", description: "Choose spaces or tab characters for each indentation level.")]
-    public EditorIndentationStyle EditorIndentationStyle
+    public ScriptIndentationStyle ScriptIndentationStyle
     {
         get => editorIndentationStyle;
         set => SetField(ref editorIndentationStyle, value);
     }
 
     [Dropdown(label: "Indentation width", description: "Choose the number of spaces per indentation level. This also controls the visual width of tabs in the formatter output.")]
-    public EditorIndentationSize EditorIndentationSize
+    public ScriptIndentationSize ScriptIndentationSize
     {
         get => editorIndentationSize;
         set => SetField(ref editorIndentationSize, value);
@@ -322,15 +322,15 @@ public sealed class Config : INotifyPropertyChanged
             var parseOptions = CSharpParseOptions.Default.WithKind(SourceCodeKind.Script);
             var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
             var root = syntaxTree.GetRoot();
-            var indentation = EditorIndentationStyle == EditorIndentationStyle.Tabs
+            var indentation = ScriptIndentationStyle == ScriptIndentationStyle.Tabs
                 ? "\t"
-                : new string(' ', (int)EditorIndentationSize);
+                : new string(' ', (int)ScriptIndentationSize);
             var formatted = root.NormalizeWhitespace(indentation, Environment.NewLine, elasticTrivia: false).ToFullString();
 
             EditorSource = formatted;
             EditorDiagnosticsSummary = "Not checked yet.";
             EditorDiagnostics = "Source formatted. Run Check Script to refresh compiler diagnostics.";
-            EditorStatus = $"Formatted the entire editor source using {EditorIndentationStyle.ToString().ToLowerInvariant()} with width {(int)EditorIndentationSize}. Review the changes before saving or running.";
+            EditorStatus = $"Formatted the entire editor source using {ScriptIndentationStyle.ToString().ToLowerInvariant()} with width {(int)ScriptIndentationSize}. Review the changes before saving or running.";
             EditorNavigationOffset = 0;
             EditorNavigationVersion++;
         }
