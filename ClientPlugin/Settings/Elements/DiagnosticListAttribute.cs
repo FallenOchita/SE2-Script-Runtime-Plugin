@@ -21,7 +21,6 @@ internal sealed class DiagnosticListAttribute : Attribute, IElement
 
     public Control BuildRow(string name, Func<object> getter, Action<object> setter)
     {
-        var items = getter() as ScriptDiagnosticInfo[] ?? Array.Empty<ScriptDiagnosticInfo>();
         var list = new StackPanel { Spacing = 4 };
 
         void Rebuild()
