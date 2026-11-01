@@ -19,6 +19,7 @@ public sealed class Config : INotifyPropertyChanged
     private string editorStatus = "Load a script to begin editing.";
     private string editorDiagnostics = "No diagnostics yet. Select Check Script to compile the editor contents.";
     private string editorDiagnosticsSummary = "Not checked yet.";
+    private ScriptDiagnosticInfo[] editorDiagnosticMarkers = Array.Empty<ScriptDiagnosticInfo>();
     private string selectedCompletion = "Api.Log(\"Your message here\");";
 
     [XmlIgnore]
@@ -195,6 +196,18 @@ public sealed class Config : INotifyPropertyChanged
         EditorStatus = "Inserted code template. Review it before saving or running.";
     }
 
+    [XmlIgnore]
+    public ScriptDiagnosticInfo[] EditorDiagnosticMarkers
+    {
+        get => editorDiagnosticMarkers;
+        private set => SetField(ref editorDiagnosticMarkers, value ?? Array.Empty<ScriptDiagnosticInfo>());
+    }
+
+    private void ApplyEditorDiagnostics(ScriptDiagnosticInfo[] diagnostics)
+    {
+        EditorDiagnosticMarkers = diagnostics ?? Array.Empty<ScriptDiagnosticInfo>();
+    }
+
     [Textbox(label: "Diagnostic summary", description: "Counts from the most recent compile check.")]
     public string EditorDiagnosticsSummary { get => editorDiagnosticsSummary; set => SetField(ref editorDiagnosticsSummary, value); }
 
@@ -224,7 +237,9 @@ public sealed class Config : INotifyPropertyChanged
         try
         {
             var name = NormalizeScriptName(SelectedScript);
-            var diagnostics = Plugin.Instance.Scripts.Validate(EditorSource);
+            var details = Plugin.Instance.Scripts.ValidateDetailed(EditorSource);
+            var diagnostics = details.Select(d => d.ToString()).ToArray();
+            ApplyEditorDiagnostics(details);
             UpdateDiagnosticSummary(diagnostics);
             EditorDiagnostics = diagnostics.Length == 0 ? $"{name}: no compiler errors or warnings." : string.Join("\n", diagnostics);
             EditorStatus = $"Check complete for {name}. {diagnostics.Length} diagnostic(s).";
@@ -238,7 +253,9 @@ public sealed class Config : INotifyPropertyChanged
         try
         {
             var name = NormalizeScriptName(SelectedScript);
-            var diagnostics = Plugin.Instance.Scripts.Validate(EditorSource);
+            var details = Plugin.Instance.Scripts.ValidateDetailed(EditorSource);
+            var diagnostics = details.Select(d => d.ToString()).ToArray();
+            ApplyEditorDiagnostics(details);
             UpdateDiagnosticSummary(diagnostics);
             EditorDiagnostics = diagnostics.Length == 0 ? $"{name}: no compiler errors or warnings." : string.Join("\n", diagnostics);
             var errors = CountDiagnostics(diagnostics, "Error ");
