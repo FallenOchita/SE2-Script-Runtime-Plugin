@@ -6,6 +6,8 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Markup.Xaml.Styling;
 using AvaloniaEdit;
+using AvaloniaEdit.Document;
+using AvaloniaEdit.Rendering;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
 
@@ -40,6 +42,10 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
             FontSize = 14,
         };
 
+        var diagnosticTransformer = new RoslynDiagnosticTransformer(
+            () => Config.Current?.EditorDiagnosticMarkers ?? Array.Empty<ScriptDiagnosticInfo>());
+        editor.TextArea.TextView.LineTransformers.Add(diagnosticTransformer);
+
         var registryOptions = new RegistryOptions(ThemeName.DarkPlus);
         var textMate = editor.InstallTextMate(registryOptions);
         var csharp = registryOptions.GetLanguageByExtension(".cs");
@@ -55,6 +61,10 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
                 var current = getter()?.ToString() ?? string.Empty;
                 if (!string.Equals(editor.Text, current, StringComparison.Ordinal))
                     editor.Text = current;
+            }
+            else if (args.PropertyName == nameof(Config.EditorDiagnosticMarkers))
+            {
+                editor.TextArea.TextView.Redraw();
             }
         };
         Config.Current.PropertyChanged += handler;
@@ -85,6 +95,46 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
         }
 
         _stylesRegistered = true;
+    }
+
+    private sealed class RoslynDiagnosticTransformer : DocumentColorizingTransformer
+    {
+        private readonly Func<ScriptDiagnosticInfo[]> _getDiagnostics;
+
+        public RoslynDiagnosticTransformer(Func<ScriptDiagnosticInfo[]> getDiagnostics)
+            => _getDiagnostics = getDiagnostics;
+
+        protected override void ColorizeLine(DocumentLine line)
+        {
+            var diagnostics = _getDiagnostics();
+            if (diagnostics == null || diagnostics.Length == 0 || line.Length == 0)
+                return;
+
+            var lineStart = line.Offset;
+            var lineEnd = line.EndOffset;
+            foreach (var diagnostic in diagnostics)
+            {
+                var spanStart = diagnostic.StartOffset;
+                var spanEnd = spanStart + diagnostic.Length;
+                var start = Math.Max(lineStart, spanStart);
+                var end = Math.Min(lineEnd, spanEnd);
+
+                // Roslyn can report a zero-length span for a missing token at the
+                // end of a line. Highlight the nearest existing character instead.
+                if (diagnostic.Length == 0 && start == end && start == lineEnd && line.Length > 0)
+                    start = lineEnd - 1;
+                if (diagnostic.Length == 0 && end == start && line.Length > 0)
+                    end = start + 1;
+                if (start >= end)
+                    continue;
+
+                var color = string.Equals(diagnostic.Severity, "Error", StringComparison.Ordinal)
+                    ? Color.FromArgb(72, 235, 70, 70)
+                    : Color.FromArgb(64, 235, 180, 55);
+                var brush = new SolidColorBrush(color);
+                ChangeLinePart(start, end, element => element.BackgroundBrush = brush);
+            }
+        }
     }
 
     public List<Type> SupportedTypes { get; } = new() { typeof(string) };
