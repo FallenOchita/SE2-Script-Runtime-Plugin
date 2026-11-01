@@ -43,7 +43,11 @@ internal sealed class ScriptManagementScreen : ScreenView
     private readonly DispatcherTimer refreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private string[] renderedNames = Array.Empty<string>();
 
-    public ScriptManagementScreen() => Build();
+    public ScriptManagementScreen()
+    {
+        refreshTimer.Tick += (_, _) => RefreshRuntimeState();
+        Build();
+    }
 
     private void Build()
     {
@@ -167,7 +171,6 @@ internal sealed class ScriptManagementScreen : ScreenView
     {
         base.OnAttachedToVisualTree(e);
         RebuildRows();
-        refreshTimer.Tick += (_, _) => RefreshRuntimeState();
         refreshTimer.Start();
     }
 
