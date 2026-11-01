@@ -274,7 +274,7 @@ public sealed class Config : INotifyPropertyChanged
         DisabledScriptNames = string.Empty;
         ScriptStatus = previous.Length == 0
             ? "All scripts were already enabled."
-            : $"Enabled all scripts. Cleared {previous.Length} disabled entr(y/ies). Close settings to save changes.";
+            : $"Enabled all scripts. Cleared {previous.Length} disabled entry/entries. Close settings to save changes.";
         RefreshStatus();
     }
 
@@ -317,7 +317,9 @@ public sealed class Config : INotifyPropertyChanged
                 : running.Contains(file, StringComparer.OrdinalIgnoreCase) ? "RUNNING" : "ENABLED / STOPPED";
             return $"  [{state}] {file}";
         });
-        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nScript status:\n{string.Join("\n", statusLines)}\n\nRunning ({running.Length}): {string.Join(", ", running)}\nDisabled ({disabled.Length}): {string.Join(", ", disabled)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
+        var disabledFileCount = files.Count(file => disabled.Contains(file, StringComparer.OrdinalIgnoreCase));
+        var enabledCount = files.Length - disabledFileCount;
+        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nSummary: {files.Length} total | {enabledCount} enabled | {disabledFileCount} disabled | {running.Length} running\nScript status:\n{string.Join("\n", statusLines)}\n\nRunning ({running.Length}): {string.Join(", ", running)}\nDisabled ({disabled.Length} configured): {string.Join(", ", disabled)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
     }
 
     private static string NormalizeScriptName(string value)
