@@ -115,9 +115,16 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
             foreach (var diagnostic in diagnostics)
             {
                 var spanStart = diagnostic.StartOffset;
-                var spanEnd = spanStart + Math.Max(1, diagnostic.Length);
+                var spanEnd = spanStart + diagnostic.Length;
                 var start = Math.Max(lineStart, spanStart);
                 var end = Math.Min(lineEnd, spanEnd);
+
+                // Roslyn can report a zero-length span for a missing token at the
+                // end of a line. Highlight the nearest existing character instead.
+                if (diagnostic.Length == 0 && start == end && start == lineEnd && line.Length > 0)
+                    start = lineEnd - 1;
+                if (diagnostic.Length == 0 && end == start && line.Length > 0)
+                    end = start + 1;
                 if (start >= end)
                     continue;
 
