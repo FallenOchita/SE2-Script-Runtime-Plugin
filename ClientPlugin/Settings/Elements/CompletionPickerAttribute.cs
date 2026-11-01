@@ -24,24 +24,17 @@ internal sealed class CompletionPickerAttribute : Attribute, IElement
 
     private static readonly string[] ApiMembers =
     {
-        "Log",
-        "Delay",
-        "CancellationToken",
-        "ThrowIfCancellationRequested",
+        "Log", "Delay", "CancellationToken", "ThrowIfCancellationRequested",
     };
 
     private static readonly string[] TimeSpanMembers =
     {
-        "FromSeconds",
-        "FromMilliseconds",
-        "FromMinutes",
+        "FromSeconds", "FromMilliseconds", "FromMinutes",
     };
 
     private static readonly string[] CancellationMembers =
     {
-        "IsCancellationRequested",
-        "CanBeCanceled",
-        "ThrowIfCancellationRequested",
+        "IsCancellationRequested", "CanBeCanceled", "ThrowIfCancellationRequested",
     };
 
     public readonly string Label;
@@ -83,10 +76,9 @@ internal sealed class CompletionPickerAttribute : Attribute, IElement
         Config.Current.PropertyChanged += handler;
         comboBox.DetachedFromVisualTree += (_, _) => Config.Current.PropertyChanged -= handler;
 
-        comboBox.ItemsSource = GetCandidates(Config.Current.EditorSource);
-        comboBox.SelectedItem = comboBox.ItemsSource is IEnumerable<string> items
-            ? items.FirstOrDefault()
-            : null;
+        var initialCandidates = GetCandidates(Config.Current.EditorSource);
+        comboBox.ItemsSource = initialCandidates;
+        comboBox.SelectedItem = initialCandidates.FirstOrDefault();
 
         return RowBuilder.NewRow(
             Tools.Tools.GetLabelOrDefault(name, Label),
@@ -97,17 +89,18 @@ internal sealed class CompletionPickerAttribute : Attribute, IElement
     private static string[] GetCandidates(string source)
     {
         source ??= string.Empty;
-        var api = Regex.Match(source, @"Api\\.(?<prefix>[A-Za-z_]\\w*)?$");
-        if (api.Success)
-            return Filter(ApiMembers, api.Groups["prefix"].Value);
 
-        var timeSpan = Regex.Match(source, @"TimeSpan\\.(?<prefix>[A-Za-z_]\\w*)?$");
+        var cancellation = Regex.Match(source, @"Api\.CancellationToken\.(?<prefix>[A-Za-z_]\w*)?$");
+        if (cancellation.Success)
+            return Filter(CancellationMembers, cancellation.Groups["prefix"].Value);
+
+        var timeSpan = Regex.Match(source, @"TimeSpan\.(?<prefix>[A-Za-z_]\w*)?$");
         if (timeSpan.Success)
             return Filter(TimeSpanMembers, timeSpan.Groups["prefix"].Value);
 
-        var cancellation = Regex.Match(source, @"Api\\.CancellationToken\\.(?<prefix>[A-Za-z_]\\w*)?$");
-        if (cancellation.Success)
-            return Filter(CancellationMembers, cancellation.Groups["prefix"].Value);
+        var api = Regex.Match(source, @"Api\.(?<prefix>[A-Za-z_]\w*)?$");
+        if (api.Success)
+            return Filter(ApiMembers, api.Groups["prefix"].Value);
 
         return Templates;
     }
