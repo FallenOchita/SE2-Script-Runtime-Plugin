@@ -52,6 +52,7 @@ public sealed class Config : INotifyPropertyChanged
     private string editorFormattingPreview = string.Empty;
     private bool hasFormattingPreview;
     private string formattingProfileName = "Spaces (4)";
+    private string selectedFormattingProfile = "Spaces (4)";
 
     [XmlIgnore]
     public readonly string Title = "SE2 Script Manager";
@@ -331,7 +332,18 @@ public sealed class Config : INotifyPropertyChanged
     }
 
     [Separator("Editor formatting")]
-    [Textbox(label: "Formatting profile name", description: "Enter a built-in profile name or a custom name to save, apply, or delete a profile.")]
+    [FormattingProfileDropdown(label: "Select formatting profile", description: "Choose a built-in or saved custom profile to apply. The list updates when profiles are saved or deleted.")]
+    public string SelectedFormattingProfile
+    {
+        get => selectedFormattingProfile;
+        set
+        {
+            if (!SetField(ref selectedFormattingProfile, value ?? string.Empty)) return;
+            FormattingProfileName = selectedFormattingProfile;
+        }
+    }
+
+    [Textbox(label: "Custom profile name", description: "Enter a name here when saving or deleting a custom profile.")]
     public string FormattingProfileName
     {
         get => formattingProfileName;
@@ -340,10 +352,21 @@ public sealed class Config : INotifyPropertyChanged
 
     public List<ScriptFormattingProfile> FormattingProfiles { get; set; } = new();
 
+    public string[] GetFormattingProfileNames()
+    {
+        return GetBuiltInFormattingProfiles().Select(profile => profile.Name)
+            .Concat((FormattingProfiles ?? new List<ScriptFormattingProfile>())
+                .Where(profile => profile != null && !string.IsNullOrWhiteSpace(profile.Name))
+                .Select(profile => profile.Name.Trim()))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     [Button(label: "Apply Formatting Profile", description: "Applies a built-in preset or a saved custom profile.")]
     public void ApplyFormattingProfile()
     {
-        var name = (FormattingProfileName ?? string.Empty).Trim();
+        var name = (SelectedFormattingProfile ?? string.Empty).Trim();
         var profile = GetBuiltInFormattingProfiles().Concat(FormattingProfiles ?? new List<ScriptFormattingProfile>())
             .FirstOrDefault(item => item != null && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
         if (profile == null)
@@ -398,6 +421,8 @@ public sealed class Config : INotifyPropertyChanged
             existing.IndentationSize = ScriptIndentationSize;
         }
 
+        OnPropertyChanged(nameof(FormattingProfiles));
+        SelectedFormattingProfile = name;
         PersistEditorPreferences();
         EditorStatus = $"Saved custom formatting profile '{name}'.";
     }
@@ -414,6 +439,9 @@ public sealed class Config : INotifyPropertyChanged
             return;
         }
 
+        OnPropertyChanged(nameof(FormattingProfiles));
+        if (string.Equals(SelectedFormattingProfile, name, StringComparison.OrdinalIgnoreCase))
+            SelectedFormattingProfile = "Spaces (4)";
         PersistEditorPreferences();
         EditorStatus = $"Deleted custom formatting profile '{name}'.";
     }
