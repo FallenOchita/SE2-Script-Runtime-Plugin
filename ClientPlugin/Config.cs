@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
@@ -10,6 +11,7 @@ namespace SE2ScriptRuntime;
 public sealed class Config : INotifyPropertyChanged
 {
     private bool autoStartScripts;
+    private string autoStartScriptNames = string.Empty;
     private string selectedScript = "Example.csx";
     private string scriptStatus = "Loading script list...";
     private string editorSource = string.Empty;
@@ -22,8 +24,46 @@ public sealed class Config : INotifyPropertyChanged
     public readonly string Title = "SE2 Script Manager";
 
     [Separator("Startup")]
-    [Checkbox(label: "Auto-start scripts", description: "When enabled, all .csx files are started when the plugin loads. Only enable this for scripts you trust.")]
+    [Checkbox(label: "Enable configured auto-start", description: "When enabled, only scripts listed below start when the plugin loads.")]
     public bool AutoStartScripts { get => autoStartScripts; set => SetField(ref autoStartScripts, value); }
+
+
+    [MultilineTextbox(label: "Auto-start script list", description: "One .csx filename per line. Changes are saved when you close the settings window.")]
+    public string AutoStartScriptNames { get => autoStartScriptNames; set => SetField(ref autoStartScriptNames, value); }
+
+    [Button(label: "Add Selected Script to Auto-start", description: "Adds the selected filename to the startup list without duplicating it.")]
+    public void AddSelectedScriptToAutoStart()
+    {
+        var name = NormalizeScriptName(SelectedScript);
+        var names = GetAutoStartScriptNames();
+        if (Array.Exists(names, item => string.Equals(item, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            ScriptStatus = $"{name} is already in the auto-start list.";
+            return;
+        }
+        AutoStartScriptNames = string.Join(Environment.NewLine, names.Concat(new[] { name }));
+        ScriptStatus = $"Added {name} to auto-start. Close settings to save changes.";
+    }
+
+    [Button(label: "Remove Selected Script from Auto-start", description: "Removes the selected filename from the startup list.")]
+    public void RemoveSelectedScriptFromAutoStart()
+    {
+        var name = NormalizeScriptName(SelectedScript);
+        var names = GetAutoStartScriptNames();
+        var remaining = names.Where(item => !string.Equals(item, name, StringComparison.OrdinalIgnoreCase)).ToArray();
+        AutoStartScriptNames = string.Join(Environment.NewLine, remaining);
+        ScriptStatus = remaining.Length == names.Length
+            ? $"{name} was not in the auto-start list."
+            : $"Removed {name} from auto-start. Close settings to save changes.";
+    }
+
+    public string[] GetAutoStartScriptNames() => (AutoStartScriptNames ?? string.Empty)
+        .Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries)
+        .Select(item => item.Trim())
+        .Where(item => !string.IsNullOrWhiteSpace(item))
+        .Select(NormalizeScriptName)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
 
     [Separator("In-game script editor")]
     [Textbox(label: "Script filename", description: "Use a filename such as Example.csx. Files are stored in the plugin Scripts folder.")]
