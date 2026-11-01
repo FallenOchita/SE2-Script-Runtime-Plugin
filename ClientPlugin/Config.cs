@@ -288,7 +288,15 @@ public sealed class Config : INotifyPropertyChanged
         if (Plugin.Instance?.Scripts == null) return;
         var files = Plugin.Instance.Scripts.ListScripts();
         var running = Plugin.Instance.Scripts.RunningScripts;
-        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nAvailable ({files.Length}): {string.Join(", ", files)}\nRunning ({running.Length}): {string.Join(", ", running)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
+        var disabled = GetDisabledScriptNames();
+        var statusLines = files.Select(file =>
+        {
+            var state = disabled.Contains(file, StringComparer.OrdinalIgnoreCase)
+                ? "DISABLED"
+                : running.Contains(file, StringComparer.OrdinalIgnoreCase) ? "RUNNING" : "ENABLED / STOPPED";
+            return $"  [{state}] {file}";
+        });
+        ScriptStatus = $"Scripts folder: {Plugin.Instance.Scripts.ScriptDirectory}\nScript status:\n{string.Join("\n", statusLines)}\n\nRunning ({running.Length}): {string.Join(", ", running)}\nDisabled ({disabled.Length}): {string.Join(", ", disabled)}\n\nRecent output:\n{string.Join("\n", ScriptLogger.Snapshot(30))}";
     }
 
     private static string NormalizeScriptName(string value)
