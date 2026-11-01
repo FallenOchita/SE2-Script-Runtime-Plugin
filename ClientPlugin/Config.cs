@@ -107,7 +107,7 @@ public sealed class Config : INotifyPropertyChanged
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in (DisabledScriptNames ?? string.Empty)
-            .Split(new[] { '\\r', '\\n', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            .Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries))
         {
             try
             {
