@@ -14,6 +14,7 @@ public sealed class Config : INotifyPropertyChanged
     private string scriptStatus = "Loading script list...";
     private string editorSource = string.Empty;
     private string editorStatus = "Load a script to begin editing.";
+    private string editorDiagnostics = "No diagnostics yet. Select Check Script to compile the editor contents.";
 
     [XmlIgnore]
     public readonly string Title = "SE2 Script Manager";
@@ -26,8 +27,14 @@ public sealed class Config : INotifyPropertyChanged
     [Textbox(label: "Script filename", description: "Use a filename such as Example.csx. Files are stored in the plugin Scripts folder.")]
     public string SelectedScript { get => selectedScript; set => SetField(ref selectedScript, value); }
 
-    [MultilineTextbox(label: "C# script source", description: "Edit the selected .csx file here. Save before running. This editor is plain text; syntax highlighting is not included yet.")]
+    [MultilineTextbox(label: "C# script source", description: "Edit the selected .csx file here. Save before running.")]
     public string EditorSource { get => editorSource; set => SetField(ref editorSource, value); }
+
+    [CodePreview(label: "Syntax preview", description: "A read-only colorized preview of common C# tokens. The editing field remains plain text.")]
+    public string HighlightedPreview { get => EditorSource; set => EditorSource = value; }
+
+    [MultilineTextbox(label: "Compiler diagnostics", description: "Errors and warnings from the most recent Check Script operation.")]
+    public string EditorDiagnostics { get => editorDiagnostics; set => SetField(ref editorDiagnostics, value); }
 
     [MultilineTextbox(label: "Editor messages", description: "Load/save results and compiler diagnostics appear here.")]
     public string EditorStatus { get => editorStatus; set => SetField(ref editorStatus, value); }
@@ -35,14 +42,14 @@ public sealed class Config : INotifyPropertyChanged
     [Button(label: "Load Script", description: "Loads the selected script file into the editor.")]
     public void LoadEditorScript()
     {
-        try { EditorSource = Plugin.Instance.Scripts.ReadScript(NormalizeScriptName(SelectedScript)); EditorStatus = $"Loaded {NormalizeScriptName(SelectedScript)}."; }
+        try { EditorSource = Plugin.Instance.Scripts.ReadScript(NormalizeScriptName(SelectedScript)); EditorDiagnostics = "Loaded file. Run Check Script to refresh diagnostics."; EditorStatus = $"Loaded {NormalizeScriptName(SelectedScript)}."; }
         catch (Exception ex) { EditorStatus = $"Load failed: {ex.Message}"; }
     }
 
     [Button(label: "Save Script", description: "Saves the editor contents to the selected .csx file.")]
     public void SaveEditorScript()
     {
-        try { var name = NormalizeScriptName(SelectedScript); Plugin.Instance.Scripts.SaveScript(name, EditorSource); EditorStatus = $"Saved {name}."; RefreshStatus(); }
+        try { var name = NormalizeScriptName(SelectedScript); Plugin.Instance.Scripts.SaveScript(name, EditorSource); EditorStatus = $"Saved {name}."; EditorDiagnostics = "Saved. Run Check Script to refresh diagnostics."; RefreshStatus(); }
         catch (Exception ex) { EditorStatus = $"Save failed: {ex.Message}"; }
     }
 
@@ -66,11 +73,19 @@ public sealed class Config : INotifyPropertyChanged
             var name = NormalizeScriptName(SelectedScript);
             Plugin.Instance.Scripts.SaveScript(name, EditorSource);
             var started = Plugin.Instance.Scripts.Start(name);
-            EditorStatus = started ? $"Saved and started {name}." : $"{name} is already running.";
+            EditorStatus = started ? $"Saved and started {name}." : $"{name} is already running."; EditorDiagnostics = "Saved before launch. Use Check Script to review compiler diagnostics.";
             RefreshStatus();
         }
         catch (Exception ex) { EditorStatus = $"Run failed: {ex.Message}"; }
     }
+
+
+    [Button(label: "Insert Log Snippet", description: "Adds an Api.Log call at the end of the editor contents.")]
+    public void InsertLogSnippet() => EditorSource += (string.IsNullOrEmpty(EditorSource) ? string.Empty : Environment.NewLine) + "Api.Log(\"Your message here\");";
+
+    [Button(label: "Insert Cancellation Loop", description: "Adds a cooperative loop template that can be stopped by the manager.")]
+    public void InsertCancellationLoop() => EditorSource += (string.IsNullOrEmpty(EditorSource) ? string.Empty : Environment.NewLine) +
+        "while (!Api.CancellationToken.IsCancellationRequested)\n{\n    await Api.Delay(TimeSpan.FromSeconds(1));\n    Api.Log(\"Running\");\n}";
 
     [Separator("Script controls")]
     [Button(label: "Refresh Script List", description: "Rescan the Scripts folder and update runtime status.")]
