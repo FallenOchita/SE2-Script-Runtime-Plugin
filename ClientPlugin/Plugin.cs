@@ -34,7 +34,11 @@ public sealed class Plugin : IPlugin
         harmony.PatchAll(Assembly.GetExecutingAssembly());
 
         if (Config.Current.AutoStartScripts)
-            Scripts.StartAll();
+        {
+            var configuredScripts = Config.Current.GetAutoStartScriptNames();
+            var started = Scripts.StartConfigured(configuredScripts);
+            Log.Default.WriteLine($"[{Name}] Auto-start requested for {started} of {configuredScripts.Length} configured script(s).");
+        }
     }
 
     public void OpenConfigDialog()
