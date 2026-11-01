@@ -16,7 +16,7 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 - Script logging and a bounded recent-output buffer.
 - Small host API for logging, delays, cancellation checks, and script name.
 
-The editor is currently a plain multiline text editor. Syntax highlighting, autocomplete, and inline error underlining are not implemented yet.
+The editor currently uses a plain multiline text box with a separate, live colorized C# syntax preview. Compiler diagnostics are shown in their own panel with severity, line, and column. Two helper actions insert common logging and cooperative-cancellation snippets. Full editor-integrated autocomplete, inline error underlining, and syntax coloring inside the editable text surface are not implemented yet.
 
 ## Important security note
 
