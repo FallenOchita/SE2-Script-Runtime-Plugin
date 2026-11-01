@@ -214,13 +214,6 @@ public sealed class Config : INotifyPropertyChanged
     }
 
     [XmlIgnore]
-    public ScriptDiagnosticInfo[] EditorDiagnosticItems
-    {
-        get => editorDiagnosticMarkers;
-        private set => SetField(ref editorDiagnosticMarkers, value ?? Array.Empty<ScriptDiagnosticInfo>());
-    }
-
-    [XmlIgnore]
     public int EditorNavigationOffset
     {
         get => editorNavigationOffset;
@@ -248,6 +241,8 @@ public sealed class Config : INotifyPropertyChanged
 
     [Textbox(label: "Diagnostic summary", description: "Counts from the most recent compile check.")]
     public string EditorDiagnosticsSummary { get => editorDiagnosticsSummary; set => SetField(ref editorDiagnosticsSummary, value); }
+
+    public string EditorDiagnostics { get => editorDiagnostics; set => SetField(ref editorDiagnostics, value); }
 
     [DiagnosticList(label: "Compiler diagnostics", description: "Select a diagnostic to jump to its source location in the editor.")]
     public ScriptDiagnosticInfo[] EditorDiagnosticItemsForDisplay
