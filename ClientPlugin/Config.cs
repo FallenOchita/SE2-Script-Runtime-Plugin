@@ -235,7 +235,7 @@ public sealed class Config : INotifyPropertyChanged
             var warnings = CountDiagnostics(diagnostics, "Warning ");
             EditorStatus = started
                 ? warnings > 0 ? $"Saved and started {name} with {warnings} compiler warning(s)." : $"Saved and started {name}."
-                : $"{name} is already running.";
+                : Config.Current.IsScriptDisabled(name) ? $"Run blocked: {name} is disabled. Enable it in Script controls first." : $"{name} is already running or could not be started.";
             RefreshStatus();
         }
         catch (Exception ex) { EditorStatus = $"Run failed: {ex.Message}"; }
