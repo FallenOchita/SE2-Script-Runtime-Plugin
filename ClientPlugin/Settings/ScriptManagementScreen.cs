@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Keen.VRage.UI.Screens;
 using SE2ScriptRuntime.Tools;
 
@@ -39,6 +40,8 @@ internal sealed class ScriptManagementScreen : ScreenView
     private readonly TextBlock message = new();
     private TextBox search;
     private ComboBox sort;
+    private readonly DispatcherTimer refreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private string[] renderedNames = Array.Empty<string>();
 
     public ScriptManagementScreen() => Build();
 
@@ -164,6 +167,14 @@ internal sealed class ScriptManagementScreen : ScreenView
     {
         base.OnAttachedToVisualTree(e);
         RebuildRows();
+        refreshTimer.Tick += (_, _) => RefreshRuntimeState();
+        refreshTimer.Start();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        refreshTimer.Stop();
+        base.OnDetachedFromVisualTree(e);
     }
 
     private string[] GetVisibleScripts()
@@ -193,6 +204,7 @@ internal sealed class ScriptManagementScreen : ScreenView
         if (rows == null || Plugin.Instance?.Scripts == null) return;
         rows.Children.Clear();
         var files = GetVisibleScripts();
+        renderedNames = files;
         var disabled = Config.Current.GetDisabledScriptNames();
         var running = Plugin.Instance.Scripts.RunningScripts;
         var autoStart = Config.Current.GetAutoStartScriptNames();
@@ -219,6 +231,35 @@ internal sealed class ScriptManagementScreen : ScreenView
             row.Children.Add(label);
             rows.Children.Add(row);
         }
+        UpdateSummary(files.Length);
+    }
+
+    private void RefreshRuntimeState()
+    {
+        if (Plugin.Instance?.Scripts == null) return;
+
+        var files = GetVisibleScripts();
+        if (!files.SequenceEqual(renderedNames, StringComparer.OrdinalIgnoreCase))
+        {
+            RebuildRows();
+            return;
+        }
+
+        var disabled = Config.Current.GetDisabledScriptNames();
+        var running = Plugin.Instance.Scripts.RunningScripts;
+        var autoStart = Config.Current.GetAutoStartScriptNames();
+
+        for (var i = 0; i < files.Length && i < rows.Children.Count; i++)
+        {
+            if (rows.Children[i] is not StackPanel row || row.Children.Count < 2 || row.Children[1] is not TextBlock label)
+                continue;
+
+            var name = files[i];
+            var state = GetState(name, disabled, running);
+            var auto = autoStart.Contains(name, StringComparer.OrdinalIgnoreCase) ? "AUTO-START" : "";
+            label.Text = $"{name}    [{state}]    {auto}";
+        }
+
         UpdateSummary(files.Length);
     }
 
