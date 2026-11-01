@@ -23,6 +23,14 @@ public enum ScriptIndentationSize
     Eight = 8,
 }
 
+public sealed class ScriptFormattingProfile
+{
+    public string Name { get; set; } = string.Empty;
+    public ScriptIndentationStyle IndentationStyle { get; set; } = ScriptIndentationStyle.Spaces;
+    public ScriptIndentationSize IndentationSize { get; set; } = ScriptIndentationSize.Four;
+}
+
+
 public sealed class Config : INotifyPropertyChanged
 {
     private bool autoStartScripts;
@@ -43,6 +51,7 @@ public sealed class Config : INotifyPropertyChanged
     private bool formatOnSave;
     private string editorFormattingPreview = string.Empty;
     private bool hasFormattingPreview;
+    private string formattingProfileName = "Spaces (4)";
 
     [XmlIgnore]
     public readonly string Title = "SE2 Script Manager";
@@ -322,6 +331,93 @@ public sealed class Config : INotifyPropertyChanged
     }
 
     [Separator("Editor formatting")]
+    [Textbox(label: "Formatting profile name", description: "Enter a built-in profile name or a custom name to save, apply, or delete a profile.")]
+    public string FormattingProfileName
+    {
+        get => formattingProfileName;
+        set => SetField(ref formattingProfileName, value ?? string.Empty);
+    }
+
+    public List<ScriptFormattingProfile> FormattingProfiles { get; set; } = new();
+
+    [Button(label: "Apply Formatting Profile", description: "Applies a built-in preset or a saved custom profile.")]
+    public void ApplyFormattingProfile()
+    {
+        var name = (FormattingProfileName ?? string.Empty).Trim();
+        var profile = GetBuiltInFormattingProfiles().Concat(FormattingProfiles ?? new List<ScriptFormattingProfile>())
+            .FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (profile == null)
+        {
+            EditorStatus = $"Formatting profile '{name}' was not found. Built-ins: Spaces (4), Spaces (2), Tabs.";
+            return;
+        }
+
+        var changed = SetField(ref editorIndentationStyle, profile.IndentationStyle, nameof(ScriptIndentationStyle));
+        changed |= SetField(ref editorIndentationSize, profile.IndentationSize, nameof(ScriptIndentationSize));
+        ClearFormattingPreview();
+        if (changed) PersistEditorPreferences();
+        EditorStatus = $"Applied formatting profile '{profile.Name}'.";
+    }
+
+    [Button(label: "Save Current as Profile", description: "Saves the current indentation settings under the entered custom profile name.")]
+    public void SaveFormattingProfile()
+    {
+        var name = (FormattingProfileName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            EditorStatus = "Enter a name before saving a formatting profile.";
+            return;
+        }
+        if (GetBuiltInFormattingProfiles().Any(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            EditorStatus = "That name is reserved for a built-in profile. Choose a different custom name.";
+            return;
+        }
+
+        FormattingProfiles ??= new List<ScriptFormattingProfile>();
+        var existing = FormattingProfiles.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (existing == null)
+        {
+            FormattingProfiles.Add(new ScriptFormattingProfile
+            {
+                Name = name,
+                IndentationStyle = ScriptIndentationStyle,
+                IndentationSize = ScriptIndentationSize,
+            });
+        }
+        else
+        {
+            existing.IndentationStyle = ScriptIndentationStyle;
+            existing.IndentationSize = ScriptIndentationSize;
+        }
+
+        PersistEditorPreferences();
+        EditorStatus = $"Saved custom formatting profile '{name}'.";
+    }
+
+    [Button(label: "Delete Custom Profile", description: "Deletes the custom profile matching the entered name. Built-in profiles cannot be deleted.")]
+    public void DeleteFormattingProfile()
+    {
+        var name = (FormattingProfileName ?? string.Empty).Trim();
+        var removed = (FormattingProfiles ?? new List<ScriptFormattingProfile>())
+            .RemoveAll(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (removed == 0)
+        {
+            EditorStatus = $"No custom formatting profile named '{name}' was found. Built-in profiles cannot be deleted.";
+            return;
+        }
+
+        PersistEditorPreferences();
+        EditorStatus = $"Deleted custom formatting profile '{name}'.";
+    }
+
+    private static IEnumerable<ScriptFormattingProfile> GetBuiltInFormattingProfiles()
+    {
+        yield return new ScriptFormattingProfile { Name = "Spaces (4)", IndentationStyle = ScriptIndentationStyle.Spaces, IndentationSize = ScriptIndentationSize.Four };
+        yield return new ScriptFormattingProfile { Name = "Spaces (2)", IndentationStyle = ScriptIndentationStyle.Spaces, IndentationSize = ScriptIndentationSize.Two };
+        yield return new ScriptFormattingProfile { Name = "Tabs", IndentationStyle = ScriptIndentationStyle.Tabs, IndentationSize = ScriptIndentationSize.Four };
+    }
+
     [Dropdown(label: "Indentation style", description: "Choose spaces or tab characters for each indentation level.")]
     public ScriptIndentationStyle ScriptIndentationStyle
     {
