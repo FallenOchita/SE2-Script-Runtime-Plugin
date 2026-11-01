@@ -53,18 +53,28 @@ public sealed class ScriptManager
         ScriptLogger.Write(Path.GetFileName(path), "Saved from in-game editor.");
     }
 
-    public string[] Validate(string source)
+    public ScriptDiagnosticInfo[] ValidateDetailed(string source)
     {
         var diagnostics = CSharpScript.Create(source ?? string.Empty, _options, typeof(ScriptGlobals)).Compile();
-        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error || d.Severity == DiagnosticSeverity.Warning)
+        return diagnostics
+            .Where(d => (d.Severity == DiagnosticSeverity.Error || d.Severity == DiagnosticSeverity.Warning)
+                && d.Location != Location.None && d.Location.IsInSource)
             .Select(d =>
             {
                 var span = d.Location.GetLineSpan();
-                var line = span.StartLinePosition.Line + 1;
-                var column = span.StartLinePosition.Character + 1;
-                return $"{d.Severity} {d.Id} (line {line}, column {column}): {d.GetMessage()}";
+                return new ScriptDiagnosticInfo(
+                    d.Severity.ToString(),
+                    d.Id,
+                    d.Location.SourceSpan.Start,
+                    d.Location.SourceSpan.Length,
+                    span.StartLinePosition.Line + 1,
+                    span.StartLinePosition.Character + 1,
+                    d.GetMessage());
             }).ToArray();
     }
+
+    public string[] Validate(string source)
+        => ValidateDetailed(source).Select(d => d.ToString()).ToArray();
 
     public int StartAll()
     {
