@@ -14,7 +14,7 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 - Roslyn compiler errors and warnings with line and column locations. The **Save and Run Script** action checks the current editor contents first and blocks launch when compiler errors are present; warnings are shown but do not block launch. The runtime repeats this validation for scripts launched from disk, including Start All and auto-start, so those paths cannot bypass the compile gate.
 - Per-script auto-start list, disabled by default. Add or remove the selected `.csx` file from the list; when enabled, only listed scripts are launched on plugin startup. The settings dialog saves the list to `Config.xml` when closed.
 - Script management controls for enabling/disabling one or all scripts, starting all enabled scripts, and stopping all running scripts. Disabled scripts are blocked from individual starts, bulk starts, editor Save and Run, and auto-start. Disabling running scripts requests cooperative cancellation; they may not stop promptly if they do not observe their cancellation token. The settings dialog saves the disabled list when closed.
-- Dedicated script-management window with filename search, name/status sorting, multi-selection, and selected-script enable, disable, start, stop, and auto-start actions. Changes to startup and disabled lists are saved when the window closes.
+- Dedicated script-management window with filename search, name/status sorting, multi-selection, and selected-script enable, disable, start, stop, and auto-start actions. Runtime state, auto-start labels, and summary counts refresh every two seconds while the window is open. Changes to startup and disabled lists are saved when the window closes.
 - Per-script status display showing enabled/stopped, running, or disabled state.
 - Script logging and a bounded recent-output buffer.
 - Small host API for logging, delays, cancellation checks, and script name.
@@ -85,7 +85,7 @@ while (!Api.CancellationToken.IsCancellationRequested)
 
 - Replace the plain text box with a compatible editable C# editor and context-aware IntelliSense.
 - Inline diagnostic markers and syntax coloring inside the editable text surface.
-- Periodic live status refresh while the script-management window remains open.
+- A compatible editable C# editor with context-aware IntelliSense.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
