@@ -11,7 +11,7 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 - Creates a per-plugin data directory and a `Scripts` folder.
 - Lists `.csx` scripts and supports starting/stopping one or all scripts. Every launch path (individual start, Start All, and auto-start) compiles the script first and blocks launch on compiler errors; warnings are logged.
 - In-game editor controls to load, edit, save, check, and run a selected script.
-- One-click whole-document C# formatting using Roslyn syntax normalization, with configurable spaces or tabs and 2-, 4-, or 8-character indentation width. Formatting clears stale diagnostics; run **Check Script** afterward. Formatting can change whitespace throughout the file, so review before saving or running.
+- One-click whole-document C# formatting using Roslyn syntax normalization, with configurable spaces or tabs and 2-, 4-, or 8-character indentation width. An optional **Format on save** setting (off by default) applies the same formatter before **Save Script** and **Save and Run Script**. Formatting clears stale diagnostics; run **Check Script** afterward. Formatting can change whitespace throughout the file, so review before saving or running.
 - Roslyn compiler errors and warnings with line and column locations. The **Save and Run Script** action checks the current editor contents first and blocks launch when compiler errors are present; warnings are shown but do not block launch. The runtime repeats this validation for scripts launched from disk, including Start All and auto-start, so those paths cannot bypass the compile gate.
 - Per-script auto-start list, disabled by default. Add or remove the selected `.csx` file from the list; when enabled, only listed scripts are launched on plugin startup. The settings dialog saves the list to `Config.xml` when closed.
 - Script management controls for enabling/disabling one or all scripts, starting all enabled scripts, and stopping all running scripts. Disabled scripts are blocked from individual starts, bulk starts, editor Save and Run, and auto-start. Disabling running scripts requests cooperative cancellation; they may not stop promptly if they do not observe their cancellation token. The settings dialog saves the disabled list when closed.
@@ -64,7 +64,7 @@ dotnet build ClientPlugin/ClientPlugin.csproj -c Release
 2. Enter a filename such as `Example.csx`.
 3. Select **Load Script** to load an existing file. If it is a new filename, enter source in the editor and use **Save Script** to create it.
 4. Select **Check Script** to see compiler errors and warnings.
-5. Under **Editor formatting**, choose spaces or tabs and an indentation width of 2, 4, or 8. Select **Format Editor Source** to apply those preferences, then use **Check Script** to refresh diagnostics.
+5. Under **Editor formatting**, choose spaces or tabs and an indentation width of 2, 4, or 8. Select **Format Editor Source** to apply those preferences, then use **Check Script** to refresh diagnostics. Optionally enable **Format on save** to apply the formatter automatically before saving or saving and running; it is off by default.
 6. Select **Save and Run Script** to save the editor contents and start the script.
 7. Use **Stop Selected Script** to request cancellation.
 8. To configure startup scripts, select a filename, choose **Add Selected Script to Auto-start**, and enable **Enable configured auto-start**. Remove entries with **Remove Selected Script from Auto-start**. The list is saved when the settings window closes.
