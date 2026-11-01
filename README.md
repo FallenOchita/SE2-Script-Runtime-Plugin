@@ -4,7 +4,7 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 
 ## Current status
 
-**Early development / developer preview.** The repository provides a Pulsar client-plugin project, a Roslyn-based C# script host, script file management, compiler diagnostics, logging, cancellation, and an in-game plain-text editor. It has not yet been built or validated against a live SE2 installation in this development session.
+**Early development / developer preview.** The repository provides a Pulsar client-plugin project, a Roslyn-based C# script host, script file management, compiler diagnostics, logging, cancellation, and an in-game C# editor. It has not yet been built or validated against a live SE2 installation in this development session.
 
 ## Current features
 
@@ -19,7 +19,7 @@ An in-game C# scripting runtime plugin for Space Engineers 2, designed to load t
 - Script logging and a bounded recent-output buffer.
 - Small host API for logging, delays, cancellation checks, and script name.
 
-The editor currently uses a multiline text box with a separate, live colorized C# syntax preview and numbered line gutter. Compiler diagnostics are shown in their own panel with severity, line, and column. The completion picker now changes its candidates when the source ends in `Api.`, `Api.CancellationToken.`, or `TimeSpan.`; it filters members by a partially typed identifier and replaces that unfinished member access when **Insert Selected Completion** is used. Outside those recognized contexts, it offers the existing code templates. This is a limited host-API completion helper, not full Roslyn semantic IntelliSense: it does not track the caret inside the buffer, resolve arbitrary symbols, or provide inline error underlining or syntax coloring in the editable surface. The preview's lightweight tokenizer processes each line independently, so it remains a visual aid rather than a complete C# parser.
+The editor uses AvaloniaEdit with line numbers, word wrapping, and TextMate C# syntax highlighting directly in the editable surface. Compiler diagnostics are shown in their own panel with severity, line, and column. The completion picker now changes its candidates when the source ends in `Api.`, `Api.CancellationToken.`, or `TimeSpan.`; it filters members by a partially typed identifier and replaces that unfinished member access when **Insert Selected Completion** is used. Outside those recognized contexts, it offers the existing code templates. This is a limited host-API completion helper, not full Roslyn semantic IntelliSense: it does not track the caret inside the buffer, resolve arbitrary symbols, or provide inline error underlining or syntax coloring in the editable surface. The editor's syntax colors come from the bundled TextMate C# grammar; compiler diagnostics continue to come from Roslyn.
 
 ## Important security note
 
@@ -83,8 +83,7 @@ while (!Api.CancellationToken.IsCancellationRequested)
 
 ## Roadmap
 
-- Replace the plain text box with a compatible editable C# editor and full semantic IntelliSense.
-- Inline diagnostic markers and syntax coloring inside the editable text surface.
+- Add inline Roslyn diagnostic markers and caret-aware semantic IntelliSense to the editor.
 - Better cancellation and execution diagnostics.
 - Verified, version-specific SE2 API bridge.
 - Programmable Block-style compatibility layer where SE2 supports it.
