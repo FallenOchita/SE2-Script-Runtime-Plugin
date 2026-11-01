@@ -41,6 +41,8 @@ public sealed class Config : INotifyPropertyChanged
     private ScriptIndentationStyle editorIndentationStyle = ScriptIndentationStyle.Spaces;
     private ScriptIndentationSize editorIndentationSize = ScriptIndentationSize.Four;
     private bool formatOnSave;
+    private string editorFormattingPreview = string.Empty;
+    private bool hasFormattingPreview;
 
     [XmlIgnore]
     public readonly string Title = "SE2 Script Manager";
@@ -188,7 +190,10 @@ public sealed class Config : INotifyPropertyChanged
         set
         {
             if (SetField(ref editorSource, value))
+            {
                 ApplyEditorDiagnostics(Array.Empty<ScriptDiagnosticInfo>());
+                ClearFormattingPreview();
+            }
         }
     }
 
@@ -321,18 +326,102 @@ public sealed class Config : INotifyPropertyChanged
     public ScriptIndentationStyle ScriptIndentationStyle
     {
         get => editorIndentationStyle;
-        set => SetField(ref editorIndentationStyle, value);
+        set
+        {
+            if (!SetField(ref editorIndentationStyle, value)) return;
+            ClearFormattingPreview();
+            PersistEditorPreferences();
+        }
     }
 
     [Dropdown(label: "Indentation width", description: "Choose the number of spaces per indentation level. This also controls the visual width of tabs in the formatter output.")]
     public ScriptIndentationSize ScriptIndentationSize
     {
         get => editorIndentationSize;
-        set => SetField(ref editorIndentationSize, value);
+        set
+        {
+            if (!SetField(ref editorIndentationSize, value)) return;
+            ClearFormattingPreview();
+            PersistEditorPreferences();
+        }
     }
 
     [Checkbox(label: "Format on save", description: "Automatically formats the entire editor before Save Script and Save and Run Script. Disabled by default.")]
-    public bool FormatOnSave { get => formatOnSave; set => SetField(ref formatOnSave, value); }
+    public bool FormatOnSave
+    {
+        get => formatOnSave;
+        set
+        {
+            if (!SetField(ref formatOnSave, value)) return;
+            PersistEditorPreferences();
+        }
+    }
+
+    [XmlIgnore]
+    [CodePreview(label: "Formatting preview", description: "Read-only preview. Generating a preview does not modify the editor source or save the script.")]
+    public string EditorFormattingPreview
+    {
+        get => editorFormattingPreview;
+        private set => SetField(ref editorFormattingPreview, value ?? string.Empty);
+    }
+
+    [Button(label: "Preview Formatting", description: "Shows how the current editor source will look with the selected formatting preferences, without changing the source.")]
+    public void PreviewEditorFormatting()
+    {
+        try
+        {
+            EditorFormattingPreview = FormatSource(EditorSource);
+            hasFormattingPreview = true;
+            EditorStatus = "Formatting preview generated. The editor source has not been changed. Select Apply Formatting Preview to use it.";
+        }
+        catch (Exception ex)
+        {
+            ClearFormattingPreview();
+            EditorStatus = $"Formatting preview failed: {ex.Message}";
+        }
+    }
+
+    [Button(label: "Apply Formatting Preview", description: "Replaces the editor source with the most recently generated preview. Generate a new preview after changing source or formatting preferences.")]
+    public void ApplyFormattingPreview()
+    {
+        if (!hasFormattingPreview)
+        {
+            EditorStatus = "No current formatting preview. Select Preview Formatting first.";
+            return;
+        }
+
+        var preview = EditorFormattingPreview;
+        hasFormattingPreview = false;
+        EditorSource = preview;
+        EditorDiagnosticsSummary = "Not checked yet.";
+        EditorDiagnostics = "Formatting preview applied. Run Check Script to refresh compiler diagnostics.";
+        EditorStatus = "Applied formatting preview to the editor. Review the changes before saving or running.";
+        EditorNavigationOffset = 0;
+        EditorNavigationVersion++;
+    }
+
+    private void ClearFormattingPreview()
+    {
+        hasFormattingPreview = false;
+        if (!string.IsNullOrEmpty(editorFormattingPreview))
+            EditorFormattingPreview = string.Empty;
+    }
+
+    private void PersistEditorPreferences()
+    {
+        if (!ReferenceEquals(Config.Current, this) || Plugin.Instance == null)
+            return;
+
+        try
+        {
+            ConfigStorage.Save(this);
+            EditorStatus = "Editor formatting preferences saved to Config.xml.";
+        }
+        catch (Exception ex)
+        {
+            EditorStatus = $"Could not save editor preferences: {ex.Message}";
+        }
+    }
 
     private string FormatSource(string source)
     {
