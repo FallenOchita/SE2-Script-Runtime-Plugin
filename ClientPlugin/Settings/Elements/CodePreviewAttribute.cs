@@ -57,11 +57,24 @@ internal sealed class CodePreviewAttribute : Attribute, IElement
     private static void UpdatePreview(TextBlock preview, string source)
     {
         preview.Inlines.Clear();
+        var lines = source.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+
+        for (var index = 0; index < lines.Length; index++)
+        {
+            preview.Inlines.Add(new Run($"{index + 1,3} │ ") { Foreground = Brushes.DimGray });
+            AppendHighlightedLine(preview, lines[index]);
+            if (index < lines.Length - 1)
+                preview.Inlines.Add(new Run("\n") { Foreground = Brushes.Gainsboro });
+        }
+    }
+
+    private static void AppendHighlightedLine(TextBlock preview, string line)
+    {
         var position = 0;
-        foreach (Match match in Tokens.Matches(source))
+        foreach (Match match in Tokens.Matches(line))
         {
             if (match.Index > position)
-                preview.Inlines.Add(new Run(source.Substring(position, match.Index - position)) { Foreground = Brushes.Gainsboro });
+                preview.Inlines.Add(new Run(line.Substring(position, match.Index - position)) { Foreground = Brushes.Gainsboro });
 
             var color = match.Groups["comment"].Success ? Brushes.ForestGreen
                 : match.Groups["string"].Success ? Brushes.LightSalmon
@@ -71,8 +84,9 @@ internal sealed class CodePreviewAttribute : Attribute, IElement
             preview.Inlines.Add(new Run(match.Value) { Foreground = color });
             position = match.Index + match.Length;
         }
-        if (position < source.Length)
-            preview.Inlines.Add(new Run(source.Substring(position)) { Foreground = Brushes.Gainsboro });
+
+        if (position < line.Length)
+            preview.Inlines.Add(new Run(line.Substring(position)) { Foreground = Brushes.Gainsboro });
     }
 
     public List<Type> SupportedTypes { get; } = new() { typeof(string) };
