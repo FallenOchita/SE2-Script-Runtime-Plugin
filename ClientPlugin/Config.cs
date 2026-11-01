@@ -177,17 +177,17 @@ public sealed class Config : INotifyPropertyChanged
         var source = EditorSource ?? string.Empty;
         var memberContexts = new[]
         {
-            (Suffix: "Api.CancellationToken.", Prefix: "Api.CancellationToken."),
-            (Suffix: "TimeSpan.", Prefix: "TimeSpan."),
-            (Suffix: "Api.", Prefix: "Api."),
+            (Pattern: @"Api\.CancellationToken\.[A-Za-z_]\w*$", Prefix: "Api.CancellationToken."),
+            (Pattern: @"TimeSpan\.[A-Za-z_]\w*$", Prefix: "TimeSpan."),
+            (Pattern: @"Api\.[A-Za-z_]\w*$", Prefix: "Api."),
         };
 
         foreach (var context in memberContexts)
         {
-            if (source.EndsWith(context.Suffix, StringComparison.Ordinal))
+            if (System.Text.RegularExpressions.Regex.IsMatch(source, context.Pattern))
             {
-                EditorSource = source.Substring(0, source.Length - context.Suffix.Length) +
-                    context.Prefix + SelectedCompletion;
+                EditorSource = System.Text.RegularExpressions.Regex.Replace(source, context.Pattern,
+                    context.Prefix + SelectedCompletion);
                 EditorStatus = $"Inserted {context.Prefix}{SelectedCompletion}. Review it before saving or running.";
                 return;
             }
