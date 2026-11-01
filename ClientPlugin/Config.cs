@@ -162,7 +162,15 @@ public sealed class Config : INotifyPropertyChanged
     public string SelectedScript { get => selectedScript; set => SetField(ref selectedScript, value); }
 
     [CodeEditor(label: "C# script source", description: "C# editor with line numbers and TextMate syntax highlighting. Save before running.")]
-    public string EditorSource { get => editorSource; set => SetField(ref editorSource, value); }
+    public string EditorSource
+    {
+        get => editorSource;
+        set
+        {
+            if (SetField(ref editorSource, value))
+                ApplyEditorDiagnostics(Array.Empty<ScriptDiagnosticInfo>());
+        }
+    }
 
     [CompletionPicker(label: "Code completion helpers", description: "Choose a host-API member suggestion or code template, then insert it into the editor.")]
     public string SelectedCompletion { get => selectedCompletion; set => SetField(ref selectedCompletion, value); }
