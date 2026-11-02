@@ -4,6 +4,7 @@ using System.Linq;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
+using System.Text.Json;
 using SE2ScriptRuntime.Settings.Elements;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -53,6 +54,8 @@ public sealed class Config : INotifyPropertyChanged
     private bool hasFormattingPreview;
     private string formattingProfileName = "Spaces (4)";
     private string selectedFormattingProfile = "Spaces (4)";
+    private string formattingProfilesImportJson = string.Empty;
+    private string formattingProfilesExportJson = string.Empty;
 
     [XmlIgnore]
     public readonly string Title = "SE2 Script Manager";
@@ -351,6 +354,149 @@ public sealed class Config : INotifyPropertyChanged
     }
 
     public List<ScriptFormattingProfile> FormattingProfiles { get; set; } = new();
+
+    [XmlIgnore]
+    [MultilineTextbox(label: "Profile import JSON", description: "Paste a profile export JSON document here. Import validates the entire document before changing saved profiles.")]
+    public string FormattingProfilesImportJson
+    {
+        get => formattingProfilesImportJson;
+        set => SetField(ref formattingProfilesImportJson, value ?? string.Empty);
+    }
+
+    [XmlIgnore]
+    [CodePreview(label: "Profile export JSON", description: "Generate an export below, then copy this read-only JSON to share your custom formatting profiles.")]
+    public string FormattingProfilesExportJson
+    {
+        get => formattingProfilesExportJson;
+        private set => SetField(ref formattingProfilesExportJson, value ?? string.Empty);
+    }
+
+    private sealed class FormattingProfileTransfer
+    {
+        public string Name { get; set; } = string.Empty;
+        public string IndentationStyle { get; set; } = string.Empty;
+        public int IndentationSize { get; set; }
+    }
+
+    [Button(label: "Generate Profile Export", description: "Creates a JSON export containing custom profiles only. Built-in presets are never exported.")]
+    public void ExportFormattingProfiles()
+    {
+        try
+        {
+            var profiles = (FormattingProfiles ?? new List<ScriptFormattingProfile>())
+                .Where(profile => profile != null)
+                .OrderBy(profile => profile.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(profile => new FormattingProfileTransfer
+                {
+                    Name = profile.Name,
+                    IndentationStyle = profile.IndentationStyle.ToString(),
+                    IndentationSize = (int)profile.IndentationSize,
+                })
+                .ToArray();
+
+            FormattingProfilesExportJson = JsonSerializer.Serialize(profiles, new JsonSerializerOptions { WriteIndented = true });
+            EditorStatus = $"Generated JSON export for {profiles.Length} custom formatting profile(s). Copy it from Profile export JSON.";
+        }
+        catch (Exception ex)
+        {
+            EditorStatus = $"Profile export failed: {ex.Message}";
+        }
+    }
+
+    [Button(label: "Import Formatting Profiles", description: "Imports profiles from the JSON field. Existing custom profiles with matching names are updated; built-in names are rejected.")]
+    public void ImportFormattingProfiles()
+    {
+        const int maxJsonLength = 65536;
+        const int maxProfileCount = 100;
+        var json = FormattingProfilesImportJson ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            EditorStatus = "Paste a profile JSON export before importing.";
+            return;
+        }
+        if (json.Length > maxJsonLength)
+        {
+            EditorStatus = $"Profile import rejected: JSON exceeds the {maxJsonLength} character limit.";
+            return;
+        }
+
+        try
+        {
+            var imported = JsonSerializer.Deserialize<FormattingProfileTransfer[]>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (imported == null || imported.Length == 0)
+            {
+                EditorStatus = "Profile import contains no profiles.";
+                return;
+            }
+            if (imported.Length > maxProfileCount)
+            {
+                EditorStatus = $"Profile import rejected: maximum {maxProfileCount} profiles per file.";
+                return;
+            }
+
+            var validated = new List<ScriptFormattingProfile>(imported.Length);
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in imported)
+            {
+                var name = item?.Name?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(name) || name.Length > 80
+                    || name.IndexOfAny(new[] { '\r', '\n', '\t' }) >= 0)
+                    throw new InvalidOperationException("Every profile must have a name of 1–80 characters without line breaks or tabs.");
+                if (!names.Add(name))
+                    throw new InvalidOperationException($"The import contains duplicate profile name '{name}'.");
+                if (GetBuiltInFormattingProfiles().Any(profile => string.Equals(profile.Name, name, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"'{name}' is a built-in profile name and cannot be imported.");
+                if (!Enum.TryParse<ScriptIndentationStyle>(item.IndentationStyle, true, out var style)
+                    || !Enum.IsDefined(typeof(ScriptIndentationStyle), style)
+                    || !(string.Equals(item.IndentationStyle, nameof(ScriptIndentationStyle.Spaces), StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(item.IndentationStyle, nameof(ScriptIndentationStyle.Tabs), StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"Profile '{name}' has an unsupported indentation style.");
+                if (!Enum.IsDefined(typeof(ScriptIndentationSize), item.IndentationSize))
+                    throw new InvalidOperationException($"Profile '{name}' has an unsupported indentation size.");
+
+                validated.Add(new ScriptFormattingProfile
+                {
+                    Name = name,
+                    IndentationStyle = style,
+                    IndentationSize = (ScriptIndentationSize)item.IndentationSize,
+                });
+            }
+
+            FormattingProfiles ??= new List<ScriptFormattingProfile>();
+            var added = 0;
+            var updated = 0;
+            foreach (var profile in validated)
+            {
+                var existing = FormattingProfiles.FirstOrDefault(item => item != null
+                    && string.Equals(item.Name, profile.Name, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
+                {
+                    FormattingProfiles.Add(profile);
+                    added++;
+                }
+                else
+                {
+                    existing.Name = profile.Name;
+                    existing.IndentationStyle = profile.IndentationStyle;
+                    existing.IndentationSize = profile.IndentationSize;
+                    updated++;
+                }
+            }
+
+            OnPropertyChanged(nameof(FormattingProfiles));
+            PersistEditorPreferences();
+            EditorStatus = $"Imported {added} new formatting profile(s) and updated {updated} existing profile(s).";
+        }
+        catch (JsonException ex)
+        {
+            EditorStatus = $"Profile import failed: invalid JSON. {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
+        {
+            EditorStatus = $"Profile import rejected: {ex.Message}";
+        }
+    }
 
     public string[] GetFormattingProfileNames()
     {
