@@ -343,6 +343,7 @@ public sealed class Config : INotifyPropertyChanged
         {
             if (!SetField(ref selectedFormattingProfile, value ?? string.Empty)) return;
             FormattingProfileName = selectedFormattingProfile;
+            ClearFormattingPreview();
         }
     }
 
@@ -753,6 +754,31 @@ public sealed class Config : INotifyPropertyChanged
         }
     }
 
+    [Button(label: "Preview Selected Profile", description: "Previews the editor source using the selected built-in or custom profile without changing the editor or active formatting preferences.")]
+    public void PreviewSelectedFormattingProfile()
+    {
+        try
+        {
+            var profile = GetBuiltInFormattingProfiles().Concat(FormattingProfiles ?? new List<ScriptFormattingProfile>())
+                .FirstOrDefault(item => item != null && string.Equals(item.Name, SelectedFormattingProfile, StringComparison.OrdinalIgnoreCase));
+            if (profile == null)
+            {
+                ClearFormattingPreview();
+                EditorStatus = $"Formatting profile '{SelectedFormattingProfile}' was not found.";
+                return;
+            }
+
+            EditorFormattingPreview = FormatSource(EditorSource, profile.IndentationStyle, profile.IndentationSize);
+            hasFormattingPreview = true;
+            EditorStatus = $"Preview generated using '{profile.Name}'. Active formatting preferences and editor source were not changed. Select Apply Formatting Preview to use it.";
+        }
+        catch (Exception ex)
+        {
+            ClearFormattingPreview();
+            EditorStatus = $"Selected profile preview failed: {ex.Message}";
+        }
+    }
+
     [Button(label: "Apply Formatting Preview", description: "Replaces the editor source with the most recently generated preview. Generate a new preview after changing source or formatting preferences.")]
     public void ApplyFormattingPreview()
     {
@@ -796,13 +822,16 @@ public sealed class Config : INotifyPropertyChanged
     }
 
     private string FormatSource(string source)
+        => FormatSource(source, ScriptIndentationStyle, ScriptIndentationSize);
+
+    private static string FormatSource(string source, ScriptIndentationStyle style, ScriptIndentationSize size)
     {
         var parseOptions = CSharpParseOptions.Default.WithKind(SourceCodeKind.Script);
         var syntaxTree = CSharpSyntaxTree.ParseText(source ?? string.Empty, parseOptions);
         var root = syntaxTree.GetRoot();
-        var indentation = ScriptIndentationStyle == ScriptIndentationStyle.Tabs
+        var indentation = style == ScriptIndentationStyle.Tabs
             ? "\t"
-            : new string(' ', (int)ScriptIndentationSize);
+            : new string(' ', (int)size);
         return root.NormalizeWhitespace(indentation, Environment.NewLine, elasticTrivia: false).ToFullString();
     }
 
