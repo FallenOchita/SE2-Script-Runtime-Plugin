@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -22,11 +23,20 @@ internal sealed class DiagnosticListAttribute : Attribute, IElement
     public Control BuildRow(string name, Func<object> getter, Action<object> setter)
     {
         var list = new StackPanel { Spacing = 4 };
+        var root = new StackPanel { Spacing = 6 };
+        var selectedFilter = "All";
 
         void Rebuild()
         {
             list.Children.Clear();
             var diagnostics = getter() as ScriptDiagnosticInfo[] ?? Array.Empty<ScriptDiagnosticInfo>();
+            var errors = diagnostics.Count(item => string.Equals(item.Severity, "Error", StringComparison.Ordinal));
+            var warnings = diagnostics.Count(item => string.Equals(item.Severity, "Warning", StringComparison.Ordinal));
+            var visibleDiagnostics = diagnostics.Where(item =>
+                selectedFilter == "All"
+                || (selectedFilter == "Errors" && string.Equals(item.Severity, "Error", StringComparison.Ordinal))
+                || (selectedFilter == "Warnings" && string.Equals(item.Severity, "Warning", StringComparison.Ordinal))).ToArray();
+
             if (diagnostics.Length == 0)
             {
                 list.Children.Add(new TextBlock
@@ -38,7 +48,7 @@ internal sealed class DiagnosticListAttribute : Attribute, IElement
                 return;
             }
 
-            foreach (var diagnostic in diagnostics)
+            foreach (var diagnostic in visibleDiagnostics)
             {
                 var isError = string.Equals(diagnostic.Severity, "Error", StringComparison.Ordinal);
                 var button = new Button
@@ -72,12 +82,40 @@ internal sealed class DiagnosticListAttribute : Attribute, IElement
 
                 list.Children.Add(row);
             }
+
+            if (visibleDiagnostics.Length == 0)
+            {
+                list.Children.Add(new TextBlock
+                {
+                    Text = $"No {selectedFilter.ToLowerInvariant()} to display. {errors} error(s), {warnings} warning(s) total.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = Brushes.LightGray,
+                });
+            }
+        }
+
+        var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        foreach (var filterName in new[] { "All", "Errors", "Warnings" })
+        {
+            var filterButton = new Button
+            {
+                Content = filterName,
+                Padding = new Thickness(8, 4),
+            };
+            filterButton.Click += (_, _) =>
+            {
+                selectedFilter = filterName;
+                Rebuild();
+            };
+            toolbar.Children.Add(filterButton);
         }
 
         Rebuild();
+        root.Children.Add(toolbar);
+        root.Children.Add(list);
         var scroll = new ScrollViewer
         {
-            Content = list,
+            Content = root,
             Width = 420,
             MaxHeight = 220,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
