@@ -573,6 +573,101 @@ public sealed class Config : INotifyPropertyChanged
         EditorStatus = $"Saved custom formatting profile '{name}'.";
     }
 
+    [Button(label: "Duplicate Selected Profile", description: "Copies the selected built-in or custom profile into your custom profiles. Enter a destination name first, or leave it blank to generate a copy name.")]
+    public void DuplicateFormattingProfile()
+    {
+        var sourceName = (SelectedFormattingProfile ?? string.Empty).Trim();
+        var source = GetBuiltInFormattingProfiles().Concat(FormattingProfiles ?? new List<ScriptFormattingProfile>())
+            .FirstOrDefault(profile => profile != null && string.Equals(profile.Name, sourceName, StringComparison.OrdinalIgnoreCase));
+        if (source == null)
+        {
+            EditorStatus = "Select an existing formatting profile to duplicate.";
+            return;
+        }
+
+        var targetName = (FormattingProfileName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(targetName))
+        {
+            var baseName = $"Copy of {source.Name}";
+            targetName = baseName;
+            var suffix = 2;
+            while (GetFormattingProfileNames().Contains(targetName, StringComparer.OrdinalIgnoreCase))
+                targetName = $"{baseName} ({suffix++})";
+        }
+
+        if (!IsValidCustomFormattingProfileName(targetName, out var error))
+        {
+            EditorStatus = error;
+            return;
+        }
+        if (GetFormattingProfileNames().Contains(targetName, StringComparer.OrdinalIgnoreCase))
+        {
+            EditorStatus = $"A formatting profile named '{targetName}' already exists. Choose a different name.";
+            return;
+        }
+
+        FormattingProfiles ??= new List<ScriptFormattingProfile>();
+        FormattingProfiles.Add(new ScriptFormattingProfile
+        {
+            Name = targetName,
+            IndentationStyle = source.IndentationStyle,
+            IndentationSize = source.IndentationSize,
+        });
+        OnPropertyChanged(nameof(FormattingProfiles));
+        SelectedFormattingProfile = targetName;
+        PersistEditorPreferences();
+        EditorStatus = $"Duplicated '{source.Name}' as custom profile '{targetName}'.";
+    }
+
+    [Button(label: "Rename Selected Custom Profile", description: "Renames the selected custom profile using the Custom profile name field. Built-in profiles cannot be renamed.")]
+    public void RenameFormattingProfile()
+    {
+        var sourceName = (SelectedFormattingProfile ?? string.Empty).Trim();
+        var targetName = (FormattingProfileName ?? string.Empty).Trim();
+        var source = (FormattingProfiles ?? new List<ScriptFormattingProfile>())
+            .FirstOrDefault(profile => profile != null && string.Equals(profile.Name, sourceName, StringComparison.OrdinalIgnoreCase));
+        if (source == null)
+        {
+            EditorStatus = "Select a custom profile to rename. Built-in profiles cannot be renamed.";
+            return;
+        }
+        if (!IsValidCustomFormattingProfileName(targetName, out var error))
+        {
+            EditorStatus = error;
+            return;
+        }
+        if (GetBuiltInFormattingProfiles().Any(profile => string.Equals(profile.Name, targetName, StringComparison.OrdinalIgnoreCase)))
+        {
+            EditorStatus = $"'{targetName}' is reserved for a built-in profile.";
+            return;
+        }
+        if (!string.Equals(sourceName, targetName, StringComparison.OrdinalIgnoreCase)
+            && GetFormattingProfileNames().Contains(targetName, StringComparer.OrdinalIgnoreCase))
+        {
+            EditorStatus = $"A formatting profile named '{targetName}' already exists.";
+            return;
+        }
+
+        source.Name = targetName;
+        OnPropertyChanged(nameof(FormattingProfiles));
+        SelectedFormattingProfile = targetName;
+        PersistEditorPreferences();
+        EditorStatus = $"Renamed custom formatting profile to '{targetName}'.";
+    }
+
+    private static bool IsValidCustomFormattingProfileName(string name, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 80
+            || name.IndexOfAny(new[] { '\\r', '\\n', '\\t' }) >= 0)
+        {
+            error = "Enter a profile name of 1–80 characters without line breaks or tabs.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
     [Button(label: "Delete Custom Profile", description: "Deletes the custom profile matching the entered name. Built-in profiles cannot be deleted.")]
     public void DeleteFormattingProfile()
     {
