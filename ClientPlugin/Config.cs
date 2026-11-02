@@ -46,6 +46,8 @@ public sealed class Config : INotifyPropertyChanged
     private ScriptDiagnosticInfo[] editorDiagnosticMarkers = Array.Empty<ScriptDiagnosticInfo>();
     private int editorNavigationOffset;
     private int editorNavigationVersion;
+    [XmlIgnore]
+    private int selectedDiagnosticIndex = -1;
     private string selectedCompletion = "Api.Log(\"Your message here\");";
     private ScriptIndentationStyle editorIndentationStyle = ScriptIndentationStyle.Spaces;
     private ScriptIndentationSize editorIndentationSize = ScriptIndentationSize.Four;
@@ -266,9 +268,51 @@ public sealed class Config : INotifyPropertyChanged
     public void NavigateToDiagnostic(ScriptDiagnosticInfo diagnostic)
     {
         if (diagnostic == null) return;
-        EditorNavigationOffset = diagnostic.StartOffset;
+
+        var diagnostics = GetOrderedDiagnostics();
+        selectedDiagnosticIndex = Array.FindIndex(diagnostics, item => ReferenceEquals(item, diagnostic));
+        if (selectedDiagnosticIndex < 0)
+        {
+            selectedDiagnosticIndex = Array.FindIndex(diagnostics, item =>
+                item.StartOffset == diagnostic.StartOffset
+                && item.Length == diagnostic.Length
+                && string.Equals(item.Id, diagnostic.Id, StringComparison.Ordinal)
+                && string.Equals(item.Message, diagnostic.Message, StringComparison.Ordinal));
+        }
+
+        EditorNavigationOffset = Math.Clamp(diagnostic.StartOffset, 0, (EditorSource ?? string.Empty).Length);
         EditorNavigationVersion++;
     }
+
+    public void NavigateToNextDiagnostic() => NavigateDiagnosticByDirection(1);
+
+    public void NavigateToPreviousDiagnostic() => NavigateDiagnosticByDirection(-1);
+
+    private void NavigateDiagnosticByDirection(int direction)
+    {
+        var diagnostics = GetOrderedDiagnostics();
+        if (diagnostics.Length == 0)
+        {
+            selectedDiagnosticIndex = -1;
+            EditorStatus = "There are no compiler diagnostics to navigate.";
+            return;
+        }
+
+        selectedDiagnosticIndex = direction >= 0
+            ? (selectedDiagnosticIndex + 1 + diagnostics.Length) % diagnostics.Length
+            : (selectedDiagnosticIndex <= 0 ? diagnostics.Length - 1 : selectedDiagnosticIndex - 1);
+
+        NavigateToDiagnostic(diagnostics[selectedDiagnosticIndex]);
+        EditorStatus = $"Diagnostic {selectedDiagnosticIndex + 1} of {diagnostics.Length}: {diagnostics[selectedDiagnosticIndex].Severity} {diagnostics[selectedDiagnosticIndex].Id}.";
+    }
+
+    private ScriptDiagnosticInfo[] GetOrderedDiagnostics()
+        => (EditorDiagnosticMarkers ?? Array.Empty<ScriptDiagnosticInfo>())
+            .OrderBy(item => item.StartOffset)
+            .ThenBy(item => item.Line)
+            .ThenBy(item => item.Column)
+            .ThenBy(item => item.Id, StringComparer.Ordinal)
+            .ToArray();
 
     public void ApplyDiagnosticQuickFix(ScriptDiagnosticInfo diagnostic)
     {
@@ -286,6 +330,7 @@ public sealed class Config : INotifyPropertyChanged
     private void ApplyEditorDiagnostics(ScriptDiagnosticInfo[] diagnostics)
     {
         EditorDiagnosticMarkers = diagnostics ?? Array.Empty<ScriptDiagnosticInfo>();
+        selectedDiagnosticIndex = -1;
     }
 
     [Textbox(label: "Diagnostic summary", description: "Counts from the most recent compile check.")]
