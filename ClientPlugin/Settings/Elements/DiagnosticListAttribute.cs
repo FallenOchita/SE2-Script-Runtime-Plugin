@@ -95,6 +95,22 @@ internal sealed class DiagnosticListAttribute : Attribute, IElement
         }
 
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        var previousButton = new Button
+        {
+            Content = "Previous",
+            Padding = new Thickness(8, 4),
+        };
+        previousButton.Click += (_, _) => Config.Current?.NavigateToPreviousDiagnostic();
+        toolbar.Children.Add(previousButton);
+
+        var nextButton = new Button
+        {
+            Content = "Next",
+            Padding = new Thickness(8, 4),
+        };
+        nextButton.Click += (_, _) => Config.Current?.NavigateToNextDiagnostic();
+        toolbar.Children.Add(nextButton);
+
         foreach (var filterName in new[] { "All", "Errors", "Warnings" })
         {
             var filterButton = new Button
