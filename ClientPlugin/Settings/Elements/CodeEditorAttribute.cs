@@ -95,7 +95,28 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
         if (csharp != null)
             textMate.SetGrammar(registryOptions.GetScopeByLanguageId(csharp.Id));
 
-        editor.TextChanged += (_, _) => setter(editor.Text);
+        var caretStatus = new TextBlock
+        {
+            Text = "Line 1, Column 1 • Offset 0",
+            Margin = new Thickness(2, 4, 2, 0),
+            Foreground = Brushes.LightGray,
+            FontSize = 12,
+        };
+
+        void UpdateCaretStatus()
+        {
+            var offset = Math.Clamp(editor.TextArea.Caret.Offset, 0, editor.Document.TextLength);
+            var location = editor.Document.GetLocation(offset);
+            caretStatus.Text = $"Line {location.Line}, Column {location.Column} • Offset {offset}";
+        }
+
+        editor.TextChanged += (_, _) =>
+        {
+            setter(editor.Text);
+            UpdateCaretStatus();
+        };
+        editor.TextArea.Caret.PositionChanged += (_, _) => UpdateCaretStatus();
+        UpdateCaretStatus();
 
         System.ComponentModel.PropertyChangedEventHandler handler = (_, args) =>
         {
@@ -128,10 +149,14 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
             CloseDiagnosticTooltip();
         };
 
+        var editorContainer = new StackPanel { Spacing = 2 };
+        editorContainer.Children.Add(editor);
+        editorContainer.Children.Add(caretStatus);
+
         return RowBuilder.NewRow(
             Tools.Tools.GetLabelOrDefault(name, Label),
             Description,
-            editor);
+            editorContainer);
     }
 
     private static void RegisterEditorStyles()
