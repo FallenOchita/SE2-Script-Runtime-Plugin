@@ -103,6 +103,89 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
             FontSize = 12,
         };
 
+        var searchBox = new TextBox
+        {
+            Width = 220,
+            Watermark = "Find in script…",
+        };
+        var searchStatus = new TextBlock
+        {
+            Text = "Enter text to search",
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            Foreground = Brushes.LightGray,
+            FontSize = 12,
+        };
+
+        bool FindMatch(bool forward)
+        {
+            var query = searchBox.Text ?? string.Empty;
+            var source = editor.Document.Text;
+            if (query.Length == 0)
+            {
+                searchStatus.Text = "Enter text to search";
+                return false;
+            }
+
+            var comparison = StringComparison.OrdinalIgnoreCase;
+            int match;
+            if (forward)
+            {
+                var start = editor.SelectionLength > 0
+                    ? editor.SelectionStart + editor.SelectionLength
+                    : editor.TextArea.Caret.Offset;
+                match = source.IndexOf(query, Math.Clamp(start, 0, source.Length), comparison);
+                if (match < 0 && start > 0)
+                    match = source.IndexOf(query, 0, comparison);
+            }
+            else
+            {
+                var start = editor.SelectionLength > 0
+                    ? editor.SelectionStart - 1
+                    : editor.TextArea.Caret.Offset - 1;
+                match = start >= 0
+                    ? source.LastIndexOf(query, Math.Min(start, source.Length - 1), comparison)
+                    : -1;
+                if (match < 0 && source.Length > 0)
+                    match = source.LastIndexOf(query, source.Length - 1, comparison);
+            }
+
+            if (match < 0)
+            {
+                searchStatus.Text = "No matches found";
+                return false;
+            }
+
+            editor.Select(match, query.Length);
+            var lineNumber = editor.Document.GetLineByOffset(match).LineNumber;
+            editor.ScrollToLine(lineNumber);
+            editor.TextArea.Focus();
+            searchStatus.Text = $"Found at line {lineNumber}, column {editor.Document.GetLocation(match).Column}";
+            return true;
+        }
+
+        var findPreviousButton = new Button { Content = "Previous", MinWidth = 68 };
+        findPreviousButton.Click += (_, _) => FindMatch(false);
+        var findNextButton = new Button { Content = "Next", MinWidth = 54 };
+        findNextButton.Click += (_, _) => FindMatch(true);
+        searchBox.KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Enter)
+            {
+                FindMatch(true);
+                args.Handled = true;
+            }
+        };
+        var searchPanel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 6,
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        searchPanel.Children.Add(searchBox);
+        searchPanel.Children.Add(findPreviousButton);
+        searchPanel.Children.Add(findNextButton);
+        searchPanel.Children.Add(searchStatus);
+
         void UpdateCaretStatus()
         {
             var offset = Math.Clamp(editor.TextArea.Caret.Offset, 0, editor.Document.TextLength);
@@ -150,6 +233,7 @@ internal sealed class CodeEditorAttribute : Attribute, IElement
         };
 
         var editorContainer = new StackPanel { Spacing = 2 };
+        editorContainer.Children.Add(searchPanel);
         editorContainer.Children.Add(editor);
         editorContainer.Children.Add(caretStatus);
 
